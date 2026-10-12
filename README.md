@@ -12,9 +12,11 @@ Interactive prototype of SEEK, a Microsoft Teams app for discovering and posting
 
 ## Embed
 ```html
-<iframe src="https://mar1e-fran.github.io/seek-teams-plugin/?embed=1" style="width:100%;aspect-ratio:16/10;border:0"></iframe>
+<iframe src="https://mar1e-fran.github.io/seek-teams-plugin/?embed=1&theme=dark" style="width:100%;aspect-ratio:4/3;border:0"></iframe>
 ```
-- `?embed=1` hides the step bar and uses a transparent background
+- `?embed=1` transparent background, no outer padding
+- `?theme=dark` styles the step bar for a dark page
+- `?nav=0` hides the step bar
 - `?step=1..4` opens on a specific step
 
 ## Team

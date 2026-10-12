@@ -418,7 +418,15 @@ h2.sect{font-size:20px;line-height:28px;font-weight:600;margin:0}
 .st.sel i{background:rgba(255,255,255,.22)}
 .st-cap{font-size:13px;color:var(--fg3);min-height:18px;text-align:center}
 .st-cap b{color:var(--fg1)}
-body.embed #steps{display:none}
+body.nonav #steps{display:none}
+body.dark .steps{background:#1F1F1F;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+body.dark .st{color:#D6D6D6}
+body.dark .st i{background:#333;color:#fff}
+body.dark .st:hover{background:#2A2A2A}
+body.dark .st.sel{background:var(--brand);color:#fff}
+body.dark .st.sel i{background:rgba(255,255,255,.22)}
+body.dark .st-cap{color:#ADADAD}
+body.dark .st-cap b{color:#fff}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -815,7 +823,7 @@ function goStep(n){
 }
 function curStep(){if(S.rail==='chat')return 4;if(!S.installed||S.dialog)return 1;if(S.mtab==='seek'&&S.stab==='create')return 3;return 2}
 const STEPS=[['Install','SEEK is added from the Teams app store, so there is no new software to approve.'],['Browse','Today’s events, each one click from the employee’s calendar.'],['Create','Anyone can post an event in four fields.'],['Detect','The SEEK bot spots an event in a chat and posts it for the team.']];
-function steps(){const c=curStep();$('#steps').innerHTML=`<div class="steps">${STEPS.map((s,i)=>`<button class="st ${c===i+1?'sel':''}" data-step="${i+1}"><i>${i+1}</i>${s[0]}</button>`).join('')}</div><div class="st-cap"><b>${c}. ${STEPS[c-1][0]}.</b> ${STEPS[c-1][1]}</div>`}
+function steps(){requestAnimationFrame(()=>typeof fit==='function'&&fit());const c=curStep();$('#steps').innerHTML=`<div class="steps">${STEPS.map((s,i)=>`<button class="st ${c===i+1?'sel':''}" data-step="${i+1}"><i>${i+1}</i>${s[0]}</button>`).join('')}</div><div class="st-cap"><b>${c}. ${STEPS[c-1][0]}.</b> ${STEPS[c-1][1]}</div>`}
 
 function sendChat(text){
  text=text.trim();if(!text)return;
@@ -910,16 +918,22 @@ function afterRender(){
 /* ---------- scale to fit ---------- */
 let SCALE=1;
 function fit(){
- const embed=document.body.classList.contains('embed');
- const nav=embed?0:$('#steps').offsetHeight+16;
- const W=innerWidth-(embed?0:32),H=innerHeight-(embed?0:32)-nav;
+ const embed=document.body.classList.contains('embed'),nonav=document.body.classList.contains('nonav');
+ const steps=$('#steps');
+ // shrink the step bar on small screens/iframes so the window keeps most of the space
+ const ns=Math.max(.62,Math.min(1,innerWidth/1100));steps.style.zoom=ns;
+ const gap=embed?10:16,padd=embed?0:32;
+ const nav=nonav?0:steps.getBoundingClientRect().height+gap;
+ const W=innerWidth-padd,H=innerHeight-padd-nav;
  SCALE=Math.min(W/1280,H/800,embed?10:1.2);
  $('#win').style.transform=`scale(${SCALE})`;
  const sc=$('#scaler');sc.style.width=1280*SCALE+'px';sc.style.height=800*SCALE+'px';
- if(embed)document.getElementById('stageWrap').style.padding='0';
+ const wrap=document.getElementById('stageWrap');wrap.style.gap=gap+'px';if(embed)wrap.style.padding='0';
 }
 const qs=new URLSearchParams(location.search);
 if(qs.get('embed')==='1')document.body.classList.add('embed');
+if(qs.get('nav')==='0')document.body.classList.add('nonav');
+if(qs.get('theme')==='dark')document.body.classList.add('dark');
 render();
 if(qs.get('step'))goStep(+qs.get('step'));
 fit();addEventListener('resize',fit);

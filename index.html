@@ -30,7 +30,10 @@
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 body{background:#F3F3F3;font-family:var(--font);color:var(--fg1);-webkit-font-smoothing:antialiased;overflow:hidden}
-body.embed{background:transparent}
+body.embed,html.embed{background:transparent}
+body.embed #win{border-radius:12px;box-shadow:none}
+body.embed:not(.dark) .st-cap{color:#5C5C5C}
+body.embed:not(.dark) .steps{box-shadow:0 0 0 1px rgba(0,0,0,.08)}
 button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
 input,textarea{font:inherit;color:inherit}
 .ic{flex:none;display:block}
@@ -935,7 +938,7 @@ function fit(){
  const wrap=document.getElementById('stageWrap');wrap.style.gap=gap+'px';if(embed)wrap.style.padding='0';
 }
 const qs=new URLSearchParams(location.search);
-if(qs.get('embed')==='1')document.body.classList.add('embed');
+if(qs.get('embed')==='1'){document.body.classList.add('embed');document.documentElement.classList.add('embed');document.documentElement.style.colorScheme=qs.get('theme')==='dark'?'dark':'light'}
 if(qs.get('nav')==='0')document.body.classList.add('nonav');
 if(qs.get('theme')==='dark')document.body.classList.add('dark');
 render();

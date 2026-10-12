@@ -1,0 +1,928 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SEEK for Microsoft Teams</title>
+<meta name="description" content="Interactive prototype of SEEK, a Microsoft Teams app for discovering and posting workplace events and moments.">
+<style>
+:root{
+  --font:"Segoe UI Variable Text","Segoe UI",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Roboto,Arial,sans-serif;
+  /* Fluent 2 – Teams brand ramp */
+  --brand:#5B5FC7; --brand-hover:#4F52B2; --brand-pressed:#444791;
+  --brand-fg2:#4F52B2; --brand-bg2:#E8EBFA; --brand-bg2-hover:#DCE0FA; --brand-stroke2:#C5CBFA;
+  /* Fluent 2 neutrals */
+  --bg1:#FFFFFF; --bg2:#FAFAFA; --bg3:#F5F5F5; --bg4:#F0F0F0; --bg5:#EBEBEB; --bg6:#E6E6E6;
+  --fg1:#242424; --fg2:#424242; --fg3:#616161; --fg4:#707070; --fg-dis:#BDBDBD;
+  --stroke1:#D1D1D1; --stroke1-hover:#C7C7C7; --stroke2:#E0E0E0; --stroke3:#F0F0F0; --stroke-acc:#616161;
+  --danger:#C50F1F; --success:#107C10; --presence:#6BB700;
+  --moment-bg:#FEFDEF; --moment-bar:#FFE836; --moment-badge-bg:#FDF6C3; --moment-badge-fg:#6D5700;
+  --event-bg:#DBE8FB; --event-bar:#6CA3FD;
+  --r2:2px; --r4:4px; --r6:6px; --r8:8px; --rc:9999px;
+  --sh2:0 0 2px rgba(0,0,0,.12),0 1px 2px rgba(0,0,0,.14);
+  --sh4:0 0 2px rgba(0,0,0,.12),0 2px 4px rgba(0,0,0,.14);
+  --sh8:0 0 2px rgba(0,0,0,.12),0 4px 8px rgba(0,0,0,.14);
+  --sh16:0 0 2px rgba(0,0,0,.12),0 8px 16px rgba(0,0,0,.14);
+  --sh28:0 0 8px rgba(0,0,0,.12),0 14px 28px rgba(0,0,0,.14);
+  --sh64:0 0 8px rgba(0,0,0,.12),0 32px 64px rgba(0,0,0,.14);
+  --ease:cubic-bezier(.33,0,.1,1);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:#F3F3F3;font-family:var(--font);color:var(--fg1);-webkit-font-smoothing:antialiased;overflow:hidden}
+body.embed{background:transparent}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+input,textarea{font:inherit;color:inherit}
+.ic{flex:none;display:block}
+#stageWrap{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:16px}
+#scaler{flex:none;position:relative}
+#win{position:absolute;left:0;top:0;width:1280px;height:800px;transform-origin:0 0;background:var(--bg5);border-radius:8px;overflow:hidden;
+  box-shadow:0 0 0 1px rgba(0,0,0,.08),0 32px 64px rgba(0,0,0,.18);display:grid;grid-template-rows:48px 1fr;grid-template-columns:68px 1fr;font-size:14px;line-height:20px}
+
+/* ---------- Title bar ---------- */
+.tb{grid-column:1/3;display:flex;align-items:center;position:relative;user-select:none}
+.tb-logo{width:68px;display:grid;place-items:center}
+.tb-center{position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:4px}
+.tb-search{width:520px;height:32px;border-radius:var(--r4);background:var(--bg1);border:1px solid var(--stroke2);display:flex;align-items:center;gap:8px;padding:0 10px;color:var(--fg4)}
+.tb-right{margin-left:auto;display:flex;align-items:center;height:100%}
+.tb-win{width:46px;height:48px;display:grid;place-items:center;color:var(--fg2)}
+.tb-win:hover{background:var(--bg6)}
+.tb-win.close:hover{background:#C42B1C;color:#fff}
+.icbtn{width:32px;height:32px;border-radius:var(--r4);display:grid;place-items:center;color:var(--fg2)}
+.icbtn:hover{background:var(--bg3);color:var(--brand)}
+.tb .icbtn:hover{background:var(--bg6)}
+
+/* ---------- Avatar ---------- */
+.av{position:relative;flex:none;border-radius:50%;display:grid;place-items:center;font-weight:600;letter-spacing:.2px}
+.av-20{width:20px;height:20px;font-size:8px}
+.av-24{width:24px;height:24px;font-size:9px}
+.av-28{width:28px;height:28px;font-size:10px}
+.av-32{width:32px;height:32px;font-size:12px}
+.av-40{width:40px;height:40px;font-size:14px}
+.av.sq{border-radius:var(--r6)}
+.pres{position:absolute;right:-2px;bottom:-2px;width:12px;height:12px;border-radius:50%;background:var(--presence);border:2px solid var(--bg1);display:grid;place-items:center}
+.pres svg{width:6px;height:6px;color:#fff}
+.av-20 .pres{width:9px;height:9px;border-width:1.5px}
+
+/* ---------- Rail ---------- */
+.rail{display:flex;flex-direction:column;align-items:center;padding-top:4px;gap:2px;user-select:none}
+.rail-i{position:relative;width:64px;height:56px;border-radius:var(--r4);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--fg3);font-size:10px;line-height:12px}
+.rail-i:hover{color:var(--brand);background:rgba(0,0,0,.03)}
+.rail-i.sel{color:var(--brand);font-weight:600}
+.rail-i.sel::before{content:"";position:absolute;left:0;top:16px;bottom:16px;width:3px;border-radius:0 3px 3px 0;background:var(--brand)}
+.rail-i .badge{position:absolute;top:6px;left:36px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#C4314B;color:#fff;font-size:10px;font-weight:600;line-height:16px;text-align:center;border:1.5px solid var(--bg5)}
+.rail-sep{width:24px;height:1px;background:var(--stroke1);margin:6px 0}
+.rail-app img,.rail-app svg.logo{width:24px;height:24px}
+
+/* ---------- Main canvas ---------- */
+.main{background:var(--bg1);border-top-left-radius:8px;overflow:hidden;position:relative;display:flex;flex-direction:column;min-width:0;box-shadow:var(--sh2)}
+
+/* ---------- Buttons ---------- */
+.btn{height:32px;min-width:96px;padding:0 12px;border-radius:var(--r4);border:1px solid var(--stroke1);background:var(--bg1);color:var(--fg1);
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;font-weight:600;font-size:14px;line-height:20px;white-space:nowrap;transition:background .1s,border-color .1s}
+.btn:hover{background:var(--bg3);border-color:var(--stroke1-hover)}
+.btn:active{background:var(--bg6)}
+.btn.primary{background:var(--brand);border-color:transparent;color:#fff}
+.btn.primary:hover{background:var(--brand-hover)}
+.btn.primary:active{background:var(--brand-pressed)}
+.btn.subtle{background:transparent;border-color:transparent;min-width:0}
+.btn.subtle:hover{background:var(--bg3)}
+.btn.sm{height:24px;min-width:64px;padding:0 8px;font-size:12px;line-height:16px;gap:4px}
+.btn.on{background:var(--brand-bg2);border-color:var(--brand-stroke2);color:var(--brand-fg2)}
+.btn.on:hover{background:var(--brand-bg2-hover)}
+.btn[disabled]{background:var(--bg4);border-color:var(--stroke2);color:var(--fg-dis);cursor:default}
+.btn.brandtext{color:var(--brand-fg2)}
+.btn:focus-visible,.tab:focus-visible,.ctab:focus-visible,.rail-i:focus-visible,.icbtn:focus-visible,.dd:focus-visible,.link:focus-visible{outline:2px solid var(--fg1);outline-offset:1px}
+.link{color:var(--brand-fg2);font-weight:600;font-size:12px}
+.link:hover{text-decoration:underline}
+.a{color:var(--brand-fg2);text-decoration:none}
+.a:hover{text-decoration:underline}
+.spinner{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ---------- Tabs ---------- */
+.tabs{display:flex;align-items:center;gap:2px}
+.tab{position:relative;height:44px;padding:0 10px;color:var(--fg2);display:inline-flex;align-items:center;gap:6px;font-size:14px}
+.tab:hover{color:var(--fg1)}
+.tab:hover::after{content:"";position:absolute;left:10px;right:10px;bottom:0;height:3px;border-radius:var(--rc);background:var(--stroke1)}
+.tab.sel{color:var(--fg1);font-weight:600}
+.tab.sel::after{content:"";position:absolute;left:10px;right:10px;bottom:0;height:3px;border-radius:var(--rc);background:var(--brand)}
+.tab .tab-logo{width:16px;height:16px}
+.ctabs{display:inline-flex;gap:4px}
+.ctab{height:28px;padding:0 12px;border-radius:var(--rc);border:1px solid var(--stroke1);color:var(--fg2);font-size:14px;display:inline-flex;align-items:center;gap:6px;background:var(--bg1)}
+.ctab:hover{background:var(--bg3);color:var(--fg1)}
+.ctab.sel{background:var(--brand-bg2);border-color:var(--brand-stroke2);color:var(--brand-fg2);font-weight:600}
+.ctab .count{font-size:12px;font-weight:400;color:inherit;opacity:.8}
+
+/* ---------- Dropdown ---------- */
+.dd-wrap{position:relative}
+.dd{height:32px;min-width:136px;padding:0 8px 0 10px;border-radius:var(--r4);border:1px solid var(--stroke1);border-bottom-color:var(--stroke-acc);background:var(--bg1);display:flex;align-items:center;gap:8px;font-size:14px;color:var(--fg1)}
+.dd:hover{border-color:var(--stroke1-hover);border-bottom-color:var(--fg2)}
+.dd .v{flex:1;text-align:left}
+.dd .v small{color:var(--fg3);font-size:14px}
+.lb{position:absolute;right:0;top:36px;z-index:30;min-width:100%;background:var(--bg1);border-radius:var(--r4);box-shadow:var(--sh16);padding:4px;animation:pop .14s var(--ease)}
+.opt{width:100%;height:32px;display:flex;align-items:center;gap:8px;padding:0 8px;border-radius:var(--r4);font-size:14px;white-space:nowrap;text-align:left}
+.opt:hover{background:var(--bg3)}
+.opt .chk{width:16px;height:16px;color:var(--brand)}
+@keyframes pop{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+
+/* ---------- Meeting header ---------- */
+.mh{height:56px;flex:none;display:flex;align-items:center;gap:12px;padding:0 20px 0 16px;border-bottom:1px solid var(--stroke2)}
+.mh-icon{width:32px;height:32px;border-radius:var(--r6);background:var(--brand);color:#fff;display:grid;place-items:center}
+.mh-title{font-size:18px;line-height:24px;font-weight:600;margin-right:8px;white-space:nowrap}
+.mh .tabs .tab{height:56px}
+.mh-actions{margin-left:auto;display:flex;gap:8px}
+.scroll{flex:1;overflow:auto;min-height:0}
+.scroll::-webkit-scrollbar{width:10px;height:10px}
+.scroll::-webkit-scrollbar-thumb{background:#C7C7C7;border-radius:10px;border:3px solid transparent;background-clip:content-box}
+.scroll::-webkit-scrollbar-thumb:hover{background:#A6A6A6;background-clip:content-box}
+
+/* Details tab */
+.det-toolbar{height:44px;flex:none;display:flex;align-items:center;gap:4px;padding:0 16px;border-bottom:1px solid var(--stroke2)}
+.vsep{width:1px;height:20px;background:var(--stroke1);margin:0 6px}
+.det{padding:20px 28px 40px;max-width:760px}
+.det-row{display:grid;grid-template-columns:20px 1fr;gap:16px;margin-bottom:20px;color:var(--fg2)}
+.det-row b{color:var(--fg1)}
+.det-row p{margin:0 0 12px}
+.det h2{font-size:24px;line-height:32px;font-weight:400;margin:24px 0 12px;padding-top:24px;border-top:1px solid var(--stroke2)}
+.det .tight p{margin:0 0 4px}
+.empty{flex:1;display:grid;place-items:center;text-align:center;color:var(--fg3)}
+.empty h3{color:var(--fg1);font-size:16px;margin:12px 0 4px}
+
+/* ---------- SEEK tab ---------- */
+.seek{padding:20px 32px 32px}
+.seek-in{max-width:1000px;margin:0 auto}
+.seek-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.seek-head h1{font-size:24px;line-height:32px;font-weight:700;margin:0;color:#353030;letter-spacing:-.2px}
+.seek-head .sub{color:var(--fg3);font-size:14px;margin-top:2px}
+.seek-logo{width:36px;height:36px}
+.seek-bar{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--stroke2);margin-bottom:20px}
+.seek-bar .tab{height:44px}
+.row{display:flex;align-items:center;gap:12px}
+.row.between{justify-content:space-between}
+h2.sect{font-size:20px;line-height:28px;font-weight:600;margin:0}
+.cap{font-size:12px;line-height:16px;color:var(--fg3)}
+.list{display:flex;flex-direction:column;gap:12px;margin-top:16px}
+
+.card{background:var(--bg1);border-radius:var(--r8);box-shadow:var(--sh4);transition:box-shadow .15s var(--ease)}
+.card:hover{box-shadow:var(--sh8)}
+.ev{display:grid;grid-template-columns:1fr auto;gap:2px 16px;padding:12px 16px 12px 16px;position:relative;overflow:hidden}
+.ev::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--event-bar)}
+.ev.moment::before{background:var(--moment-bar)}
+.ev.past{opacity:.62}
+.ev.flash{animation:flash 2.2s var(--ease)}
+@keyframes flash{0%,40%{box-shadow:0 0 0 2px var(--brand),var(--sh8)}100%{box-shadow:var(--sh4)}}
+.ev-by{display:flex;align-items:center;gap:6px;font-size:12px;line-height:16px;color:var(--fg3)}
+.ev-by b{color:var(--fg2);font-weight:600}
+.ev-by>span{white-space:nowrap}
+.badge-t{height:20px;padding:0 6px;border-radius:var(--r4);font-size:10px;font-weight:600;line-height:20px;text-transform:uppercase;letter-spacing:.4px}
+.badge-t.moment{background:var(--moment-badge-bg);color:var(--moment-badge-fg)}
+.badge-t.event{background:var(--brand-bg2);color:var(--brand-fg2)}
+.badge-t.live{background:#F1FAF1;color:#0E700E}
+.ev-title{grid-column:1;font-size:16px;line-height:22px;font-weight:600;margin:6px 0 2px}
+.ev-meta{grid-column:1;display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px;color:var(--fg2);font-size:13px}
+.ev-meta span{white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.ev-meta .ic{color:var(--fg3)}
+.ev-emoji{grid-column:2;grid-row:1/3;width:48px;height:48px;border-radius:var(--r8);background:var(--bg3);display:grid;place-items:center;font-size:28px;justify-self:end}
+.ev-act{grid-column:2;grid-row:3/5;align-self:end;justify-self:end;display:flex;align-items:center;gap:8px}
+.ev-foot{grid-column:1;display:flex;align-items:center;gap:8px;margin-top:10px}
+.pile{display:flex}
+.pile .av{border:2px solid var(--bg1);margin-left:-6px}
+.pile .av:first-child{margin-left:0}
+.ended{font-size:12px;color:var(--fg3);display:inline-flex;gap:4px;align-items:center}
+
+/* calendar */
+.cal-tools{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.cal-range{font-size:16px;font-weight:600;margin-left:4px}
+.legend{display:flex;gap:12px;font-size:12px;color:var(--fg3);margin-right:4px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.cal{border:1px solid var(--stroke2);border-radius:var(--r8);overflow:hidden;position:relative;background:var(--bg1)}
+.wk-head{display:grid;grid-template-columns:56px repeat(7,minmax(0,1fr));border-bottom:1px solid var(--stroke2);background:var(--bg1)}
+.wk-day{padding:8px 10px 10px;position:relative;border-left:1px solid var(--stroke3)}
+.wk-day .n{font-size:20px;line-height:28px;font-weight:600}
+.wk-day .d{font-size:12px;color:var(--fg3)}
+.wk-day.today .n,.wk-day.today .d{color:var(--brand-fg2)}
+.wk-day.today::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:3px;background:var(--brand)}
+.wk-body{height:400px;overflow:auto;position:relative}
+.wk-grid{display:grid;grid-template-columns:56px repeat(7,minmax(0,1fr));position:relative}
+.wk-times div{height:48px;font-size:11px;color:var(--fg3);text-align:right;padding-right:8px;transform:translateY(-7px)}
+.wk-col{position:relative;border-left:1px solid var(--stroke3);background:repeating-linear-gradient(to bottom,transparent 0 47px,var(--stroke3) 47px 48px)}
+.wk-col.today{background-color:#FBFBFE}
+.blk{position:absolute;left:3px;right:4px;border-radius:var(--r4);padding:4px 6px 4px 9px;overflow:hidden;text-align:left;font-size:12px;line-height:15px;color:var(--fg1);background:var(--event-bg);transition:box-shadow .12s,transform .12s}
+.blk::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--event-bar)}
+.blk.moment{background:var(--moment-bg);box-shadow:inset 0 0 0 1px #F3EDB5}
+.blk.moment::before{background:var(--moment-bar)}
+.blk:hover,.blk.act{box-shadow:var(--sh8);z-index:3}
+.blk b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.blk span{color:var(--fg2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.blk.past{opacity:.6}
+.now{position:absolute;left:-1px;right:0;height:2px;background:var(--danger);z-index:4;pointer-events:none}
+.now::before{content:"";position:absolute;left:-5px;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--danger)}
+
+.mo-head{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-bottom:1px solid var(--stroke2)}
+.mo-head div{padding:8px 10px;font-size:12px;color:var(--fg3)}
+.mo-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.mo-cell{min-width:0;min-height:96px;border-left:1px solid var(--stroke3);border-bottom:1px solid var(--stroke3);padding:6px 6px 4px;display:flex;flex-direction:column;gap:3px}
+.mo-cell:nth-child(7n+1){border-left:0}
+.mo-cell.out{background:var(--bg2)}
+.mo-cell.out .num{color:var(--fg-dis)}
+.mo-cell .num{font-size:12px;font-weight:600;width:24px;height:24px;display:grid;place-items:center;border-radius:50%;margin-bottom:1px}
+.mo-cell.today .num{background:var(--brand);color:#fff}
+.chip{display:block;width:100%;flex:none;height:20px;border-radius:var(--r2);padding:0 6px 0 8px;font-size:11px;line-height:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;background:var(--event-bg);position:relative}
+.chip::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--event-bar)}
+.chip.moment{background:var(--moment-bg);box-shadow:inset 0 0 0 1px #F3EDB5}
+.chip.moment::before{background:var(--moment-bar)}
+.chip:hover{filter:brightness(.97)}
+.more{font-size:11px;color:var(--brand-fg2);font-weight:600;text-align:left;padding-left:4px}
+
+.ag-day{font-size:14px;font-weight:600;margin:20px 0 8px;display:flex;gap:8px;align-items:center}
+.ag-day:first-child{margin-top:4px}
+.ag-row{display:grid;grid-template-columns:84px 4px 1fr auto;gap:12px;align-items:center;padding:10px 12px;border-radius:var(--r6)}
+.ag-row:hover{background:var(--bg3)}
+.ag-row .bar{height:36px;border-radius:2px;background:var(--event-bar)}
+.ag-row.moment .bar{background:var(--moment-bar)}
+.ag-row .t{font-size:12px;color:var(--fg2)}
+.ag-row .ttl{font-weight:600}
+
+/* popover */
+.pop{position:absolute;z-index:40;width:320px;background:var(--bg1);border-radius:var(--r8);box-shadow:var(--sh16);padding:16px;animation:pop .14s var(--ease)}
+.pop .beak{position:absolute;width:12px;height:12px;background:var(--bg1);transform:rotate(45deg);box-shadow:-1px 1px 1px rgba(0,0,0,.06)}
+.pop h4{margin:10px 0 2px;font-size:16px;line-height:22px;font-weight:600}
+.pop .meta{font-size:13px;color:var(--fg2);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.pop .lbl{font-size:12px;font-weight:600;color:var(--fg1);margin:12px 0 2px}
+.pop p{margin:0;font-size:13px;color:var(--fg2)}
+.pop .acts{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+
+/* create */
+.create{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:32px;align-items:start}
+.back{margin:-4px 0 12px -8px}
+.form{display:flex;flex-direction:column;gap:18px}
+.f-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.lbl{display:block;font-size:14px;line-height:20px;font-weight:600;margin-bottom:4px;color:var(--fg1)}
+.req{color:var(--danger);font-weight:600;padding-left:2px}
+.inp{position:relative;display:flex;align-items:center;gap:8px;min-height:32px;padding:0 10px;border-radius:var(--r4);border:1px solid var(--stroke1);border-bottom-color:var(--stroke-acc);background:var(--bg1);overflow:hidden}
+.inp:hover{border-color:var(--stroke1-hover);border-bottom-color:var(--fg2)}
+.inp::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--brand);transform:scaleX(0);transition:transform .2s var(--ease)}
+.inp:focus-within::after{transform:scaleX(1)}
+.inp.err{border-color:var(--danger)}
+.inp input,.inp textarea{flex:1;border:0;outline:0;background:transparent;font-size:14px;line-height:20px;min-width:0;padding:5px 0}
+.inp textarea{resize:none;height:88px;padding:6px 0}
+.inp.ta{align-items:flex-start}
+.inp .ic{color:var(--fg3)}
+.inp input::placeholder,.inp textarea::placeholder{color:var(--fg4)}
+.inp input[type=date]::-webkit-calendar-picker-indicator,.inp input[type=time]::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:auto;height:auto;opacity:0;cursor:pointer}
+.hint{font-size:12px;line-height:16px;color:var(--fg3);margin-top:4px}
+.errmsg{font-size:12px;line-height:16px;color:var(--danger);margin-top:4px;display:flex;gap:4px;align-items:center}
+.f-acts{display:flex;justify-content:flex-end;gap:8px;padding-top:4px}
+.prev-l{font-size:12px;font-weight:600;color:var(--fg3);text-transform:uppercase;letter-spacing:.5px;margin:2px 0 10px}
+.prev-note{margin-top:12px;display:flex;gap:8px;font-size:12px;color:var(--fg3);line-height:16px}
+
+/* ---------- Dialog ---------- */
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.4);z-index:50;display:grid;place-items:center;animation:fade .15s}
+@keyframes fade{from{opacity:0}}
+.dlg{width:760px;max-height:680px;background:var(--bg1);border-radius:var(--r8);box-shadow:var(--sh64);display:flex;flex-direction:column;animation:dlg .2s var(--ease)}
+@keyframes dlg{from{opacity:0;transform:scale(.97)}}
+.dlg-body{padding:24px 28px 8px;overflow:auto;flex:1;min-height:0}
+.dlg-foot{display:flex;align-items:center;gap:8px;padding:16px 28px 24px;border-top:1px solid var(--stroke3)}
+.dlg-foot .sp{flex:1}
+.search-f{height:32px;border-radius:var(--r4);background:var(--bg3);display:flex;align-items:center;gap:8px;padding:0 10px;border:1px solid transparent;border-bottom-color:var(--stroke-acc);position:relative}
+.search-f:focus-within{background:var(--bg1);border-color:var(--stroke1);border-bottom:2px solid var(--brand)}
+.search-f input{flex:1;border:0;outline:0;background:transparent;font-size:14px}
+.recent{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin:20px 0 4px}
+.rapp{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:var(--fg2);padding:8px 0;border-radius:var(--r6)}
+.rapp:hover{background:var(--bg3)}
+.tile{width:48px;height:48px;border-radius:var(--r8);display:grid;place-items:center;color:#fff;box-shadow:var(--sh2)}
+.tile.s32{width:32px;height:32px;border-radius:var(--r6)}
+.tile.ghost{background:var(--bg1);color:var(--fg2);border:1px solid var(--stroke2);box-shadow:none}
+.tile.seektile{background:var(--bg1);border:1px solid var(--stroke2);box-shadow:none}
+.divtxt{display:flex;align-items:center;gap:16px;margin:12px 0 8px;font-weight:600;font-size:14px;color:var(--fg1)}
+.divtxt::before,.divtxt::after{content:"";flex:1;height:1px;background:var(--stroke2)}
+.sec-h{display:flex;justify-content:space-between;align-items:center;margin:18px 0 8px}
+.sec-h h3{margin:0;font-size:14px;font-weight:600}
+.apps{display:grid;grid-template-columns:1fr 1fr;gap:4px 24px}
+.app{display:grid;grid-template-columns:32px 1fr auto;gap:12px;align-items:center;padding:8px;border-radius:var(--r6);border:1px solid transparent;text-align:left}
+.app:hover{background:var(--bg3)}
+.app.hl{border-color:var(--brand);background:#F7F7FE}
+.app.hl:hover{background:#F0F1FD}
+.app .nm{font-weight:600;font-size:14px;display:flex;gap:6px;align-items:center}
+.app .ds{font-size:12px;color:var(--fg3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.newb{height:16px;padding:0 5px;border-radius:var(--r4);background:var(--brand);color:#fff;font-size:10px;line-height:16px;font-weight:600}
+.pulse{position:relative}
+.pulse::after{content:"";position:absolute;inset:-4px;border-radius:8px;border:2px solid var(--brand);animation:pulse 1.8s var(--ease) infinite;pointer-events:none}
+@keyframes pulse{0%{opacity:.9;transform:scale(.92)}70%,100%{opacity:0;transform:scale(1.18)}}
+.nores{padding:40px 0;text-align:center;color:var(--fg3)}
+
+.ad-head{display:flex;gap:20px;align-items:center;margin-bottom:20px}
+.ad-logo{width:88px;height:88px;border-radius:12px;border:1px solid var(--stroke2);display:grid;place-items:center;flex:none}
+.ad-head h2{margin:0;font-size:24px;line-height:32px;font-weight:600}
+.ad-pub{font-size:14px;color:var(--fg3);display:flex;gap:6px;align-items:center;margin:2px 0 8px}
+.ad-tags{display:flex;gap:6px}
+.tag{height:24px;padding:0 8px;border-radius:var(--r4);border:1px solid var(--stroke2);font-size:12px;line-height:22px;color:var(--fg2)}
+.ad-grid{display:grid;grid-template-columns:1fr 260px;gap:32px}
+.ad-grid p{margin:0 0 16px;color:var(--fg2)}
+.feat{display:grid;grid-template-columns:32px 1fr;gap:12px;margin-bottom:14px}
+.feat .fi{width:32px;height:32px;border-radius:var(--r6);background:var(--brand-bg2);color:var(--brand-fg2);display:grid;place-items:center}
+.feat b{display:block;font-size:14px}
+.feat span{font-size:12px;color:var(--fg3);line-height:16px;display:block}
+.perm{background:var(--bg2);border:1px solid var(--stroke3);border-radius:var(--r8);padding:14px;font-size:12px;line-height:16px;color:var(--fg2)}
+.perm h4{margin:0 0 8px;font-size:12px;color:var(--fg1);display:flex;gap:6px;align-items:center}
+.perm ul{margin:0;padding-left:16px}
+.perm li{margin-bottom:6px}
+.legal{font-size:12px;color:var(--fg3);flex:1}
+
+/* ---------- Toast ---------- */
+#toasts{position:absolute;right:20px;bottom:20px;z-index:60;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.toast{width:340px;background:var(--bg1);border-radius:var(--r4);box-shadow:var(--sh8);padding:12px;display:grid;grid-template-columns:20px 1fr auto;gap:8px 10px;animation:toast .25s var(--ease)}
+.toast.out{animation:toastout .2s var(--ease) forwards}
+@keyframes toast{from{opacity:0;transform:translateY(12px)}}
+@keyframes toastout{to{opacity:0;transform:translateY(8px)}}
+.toast .ti{color:var(--success)}
+.toast b{font-size:14px;font-weight:600;display:block}
+.toast span{font-size:12px;color:var(--fg3);line-height:16px}
+.toast .x{color:var(--fg3)}
+.toast .ta{grid-column:2;display:flex;gap:12px}
+
+/* ---------- Chat ---------- */
+.chatv{flex:1;display:grid;grid-template-columns:320px 1fr;min-height:0}
+.cl{border-right:1px solid var(--stroke2);display:flex;flex-direction:column;min-height:0;background:var(--bg1)}
+.cl-h{height:56px;flex:none;display:flex;align-items:center;gap:4px;padding:0 12px 0 20px}
+.cl-h h2{margin:0;font-size:20px;font-weight:700;display:flex;align-items:center;gap:6px;flex:1}
+.cl-sec{font-size:12px;font-weight:600;color:var(--fg3);padding:12px 20px 4px;display:flex;align-items:center;gap:4px}
+.ci{display:grid;grid-template-columns:32px 1fr auto;gap:2px 12px;align-items:center;padding:8px 12px;margin:0 8px;border-radius:var(--r6);width:calc(100% - 16px);text-align:left}
+.ci:hover{background:var(--bg3)}
+.ci.sel{background:var(--bg4)}
+.ci .av{grid-row:1/3}
+.ci .nm{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ci .tm{font-size:12px;color:var(--fg3)}
+.ci .pv{grid-column:2/4;font-size:12px;color:var(--fg3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:16px}
+.ci.unread .nm,.ci.unread .pv{font-weight:700;color:var(--fg1)}
+.cv{display:flex;flex-direction:column;min-height:0;background:var(--bg3)}
+.cv-h{height:56px;flex:none;display:flex;align-items:center;gap:12px;padding:0 16px 0 20px;background:var(--bg1);border-bottom:1px solid var(--stroke2)}
+.cv-h .nm{font-size:16px;font-weight:700;margin-right:12px}
+.cv-h .tab{height:56px}
+.cv-h .acts{margin-left:auto;display:flex;align-items:center;gap:4px}
+.callbtn{display:flex;border:1px solid var(--stroke1);border-radius:var(--r4);overflow:hidden}
+.callbtn button{width:40px;height:32px;display:grid;place-items:center;color:var(--fg2)}
+.callbtn button:hover{background:var(--bg3)}
+.callbtn button+button{border-left:1px solid var(--stroke1)}
+.msgs{flex:1;overflow:auto;padding:20px 32px 8px;display:flex;flex-direction:column;gap:2px}
+.daysep{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--fg3);margin:4px 0 16px}
+.daysep::before,.daysep::after{content:"";flex:1;height:1px;background:var(--stroke2)}
+.m{display:grid;grid-template-columns:32px 1fr;gap:0 12px;margin-top:12px;animation:msg .25s var(--ease)}
+@keyframes msg{from{opacity:0;transform:translateY(6px)}}
+.m .bub{justify-self:start;max-width:560px;background:var(--bg1);border-radius:var(--r6);padding:8px 16px 10px;box-shadow:var(--sh2)}
+.m .hd{font-size:12px;color:var(--fg3);display:flex;gap:10px;align-items:center;margin-bottom:2px}
+.m .hd b{color:var(--fg2);font-weight:400}
+.m.me{grid-template-columns:1fr}
+.m.me .bub{justify-self:end;background:var(--brand-bg2);box-shadow:none}
+.m.me .hd{justify-content:flex-end}
+.m.cont{margin-top:2px}
+.m.cont .av{visibility:hidden}
+.mention{color:var(--brand-fg2);font-weight:600}
+.apptag{height:16px;border:1px solid var(--stroke1);border-radius:var(--r4);padding:0 4px;font-size:10px;line-height:14px;color:var(--fg3)}
+.botav{width:32px;height:32px;border-radius:var(--r6);background:var(--bg1);border:1px solid var(--stroke2);display:grid;place-items:center}
+.botav svg{width:20px;height:20px}
+.ac{width:380px;padding:4px 0 2px}
+.ac .t1{font-size:14px;margin-bottom:10px}
+.ac-ev{display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:center;background:#EFF5FF;border-radius:var(--r6);padding:10px 12px;margin-bottom:12px}
+.ac-ev .em{width:44px;height:44px;border-radius:var(--r6);background:var(--bg1);display:grid;place-items:center;font-size:24px}
+.ac-ev b{display:block;font-size:14px}
+.ac-ev span{font-size:12px;color:var(--fg2);display:flex;gap:4px;align-items:center}
+.ac-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ac-acts .btn{min-width:0}
+.ac .foot{font-size:12px;color:var(--fg3);margin-top:8px;display:flex;gap:4px;align-items:center}
+.typing{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--fg3);padding:8px 0 0 44px;height:28px}
+.dots{display:flex;gap:3px}
+.dots i{width:5px;height:5px;border-radius:50%;background:var(--fg3);animation:dot 1.2s infinite}
+.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+@keyframes dot{0%,60%,100%{opacity:.3;transform:none}30%{opacity:1;transform:translateY(-3px)}}
+.comp{padding:8px 32px 20px}
+.comp-box{background:var(--bg1);border-radius:var(--r6);box-shadow:var(--sh2);display:flex;align-items:center;gap:4px;padding:6px 6px 6px 14px;border-bottom:2px solid transparent}
+.comp-box:focus-within{border-bottom-color:var(--brand)}
+.comp-box input{flex:1;border:0;outline:0;font-size:14px;height:32px;background:transparent}
+.comp-tools{display:flex;gap:0}
+.comp-tools .icbtn{width:32px}
+.send{width:32px;height:32px;border-radius:var(--r4);display:grid;place-items:center;color:var(--fg-dis)}
+.send.on{color:var(--brand)}
+.send.on:hover{background:var(--brand-bg2)}
+.reacts{display:flex;gap:4px;margin:4px 0 0 0}
+.react{height:22px;border-radius:11px;border:1px solid var(--stroke2);background:var(--bg1);font-size:12px;padding:0 6px;display:flex;align-items:center;gap:3px}
+
+/* ---------- Step nav (portfolio chrome) ---------- */
+#steps{flex:none;display:flex;flex-direction:column;align-items:center;gap:8px;font-family:var(--font)}
+.steps{display:flex;gap:4px;background:#fff;border-radius:999px;padding:4px;box-shadow:var(--sh4)}
+.st{height:32px;padding:0 14px 0 6px;border-radius:999px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--fg2)}
+.st i{font-style:normal;width:22px;height:22px;border-radius:50%;background:var(--bg4);display:grid;place-items:center;font-size:12px}
+.st:hover{background:var(--bg3)}
+.st.sel{background:var(--brand);color:#fff}
+.st.sel i{background:rgba(255,255,255,.22)}
+.st-cap{font-size:13px;color:var(--fg3);min-height:18px;text-align:center}
+.st-cap b{color:var(--fg1)}
+body.embed #steps{display:none}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="stageWrap">
+  <div id="scaler"><div id="win" role="application" aria-label="SEEK for Microsoft Teams prototype"></div></div>
+  <div id="steps"></div>
+</div>
+<script>
+const ICONS={"text_format":"<path d=\"M14.09 6.7a2.26 2.26 0 0 1 3.07-.12l.13.12.12.13c.73.85.73 2.1 0 2.96l-.12.13-6.87 6.9a1.5 1.5 0 0 1-.55.35l-.16.05-3.08.76a.5.5 0 0 1-.62-.53l.01-.08.8-3.07c.05-.21.15-.4.28-.57l.1-.12 6.89-6.9Zm2.5.7a1.26 1.26 0 0 0-1.7-.08l-.1.09-6.88 6.9a.5.5 0 0 0-.1.15l-.03.08-.58 2.27 2.27-.56a.5.5 0 0 0 .12-.05l.05-.03.07-.06 6.87-6.9c.5-.5.5-1.3 0-1.8ZM6.41 2.24l.05.08 2.98 7.63-.77.78L8 9H4l-1.03 2.68a.5.5 0 0 1-.56.3l-.1-.02a.5.5 0 0 1-.3-.56l.02-.08 3.5-9a.5.5 0 0 1 .9-.1ZM6 3.87 4.4 8H7.6l-1.6-4.13Z\"/>","add_circle_f":"<path d=\"M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0ZM6 10c0 .28.22.5.5.5h3v3a.5.5 0 0 0 1 0v-3h3a.5.5 0 0 0 0-1h-3v-3a.5.5 0 0 0-1 0v3h-3a.5.5 0 0 0-.5.5Z\"/>","add_circle":"<path d=\"M6 10c0-.28.22-.5.5-.5h3v-3a.5.5 0 0 1 1 0v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3A.5.5 0 0 1 6 10Zm4 8a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm0-1a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z\"/>","add":"<path d=\"M10 2.5c.28 0 .5.22.5.5v6.5H17a.5.5 0 0 1 0 1h-6.5V17a.5.5 0 0 1-1 0v-6.5H3a.5.5 0 0 1 0-1h6.5V3c0-.28.22-.5.5-.5Z\"/>","add_square_f":"<path d=\"M3 6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6Zm7.5.5a.5.5 0 0 0-1 0v3h-3a.5.5 0 0 0 0 1h3v3a.5.5 0 1 0 1 0v-3h3a.5.5 0 1 0 0-1h-3v-3Z\"/>","add_square":"<path d=\"M6 3a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3V6a3 3 0 0 0-3-3H6ZM4 6c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Zm6.5.5a.5.5 0 0 0-1 0v3h-3a.5.5 0 0 0 0 1h3v3a.5.5 0 1 0 1 0v-3h3a.5.5 0 1 0 0-1h-3v-3Z\"/>","alert_f":"<path d=\"M12.45 16a2.5 2.5 0 0 1-4.9 0h4.9ZM10 2a5.92 5.92 0 0 1 5.98 5.36l.02.22V11.4l.95 2.6.03.08.01.09v.08c0 .32-.19.6-.51.71l-.12.03-.11.01H3.75a.75.75 0 0 1-.74-.76v-.12l.04-.12L4 11.4V7.57A5.9 5.9 0 0 1 10 2Z\"/>","alert":"<path d=\"M10 2a5.92 5.92 0 0 1 5.98 5.36l.02.22V11.4l.92 2.22a1 1 0 0 1 .06.17l.01.08.01.13a1 1 0 0 1-.75.97l-.11.02L16 15h-3.5v.17a2.5 2.5 0 0 1-5 0V15H4a1 1 0 0 1-.26-.03l-.13-.04a1 1 0 0 1-.6-1.05l.02-.13.05-.13L4 11.4V7.57A5.9 5.9 0 0 1 10 2Zm1.5 13h-3v.15a1.5 1.5 0 0 0 1.36 1.34l.14.01c.78 0 1.42-.6 1.5-1.36V15ZM10 3a4.9 4.9 0 0 0-4.98 4.38L5 7.6V11.5l-.04.2L4 14h12l-.96-2.3-.04-.2V7.61A4.9 4.9 0 0 0 10 3Z\"/>","apps_f":"<path d=\"M4.5 17A1.5 1.5 0 0 1 3 15.65V4.5c0-.78.6-1.42 1.36-1.5H9c.78 0 1.42.6 1.5 1.36v.4l2.19-2.27a1.5 1.5 0 0 1 2-.14l.12.1 2.76 2.72c.55.55.6 1.42.11 2.02l-.1.11-2.31 2.2h.23c.78 0 1.42.6 1.5 1.36v4.64c0 .78-.6 1.42-1.36 1.5H4.5Zm5-6.5H4v5c0 .22.14.4.33.47l.08.02.09.01h5v-5.5Zm6 0h-5V16h5a.5.5 0 0 0 .5-.4V11a.5.5 0 0 0-.41-.5h-.09Zm-5-2.79V9.5h1.79L10.5 7.71ZM9 4.01H4.5a.5.5 0 0 0-.5.4v5.1h5.5v-5a.5.5 0 0 0-.33-.48l-.08-.02H9Z\"/>","apps":"<path d=\"M4.5 17A1.5 1.5 0 0 1 3 15.65V4.5c0-.78.6-1.42 1.36-1.5H9c.78 0 1.42.6 1.5 1.36v.4l2.19-2.27a1.5 1.5 0 0 1 2-.14l.12.1 2.76 2.72c.55.55.6 1.42.11 2.02l-.1.11-2.31 2.2h.23c.78 0 1.42.6 1.5 1.36v4.64c0 .78-.6 1.42-1.36 1.5H4.5Zm5-6.5H4v5c0 .22.14.4.33.47l.08.02.09.01h5v-5.5Zm6 0h-5V16h5a.5.5 0 0 0 .5-.4V11a.5.5 0 0 0-.41-.5h-.09Zm-5-2.79V9.5h1.79L10.5 7.71ZM9 4.01H4.5a.5.5 0 0 0-.5.4v5.1h5.5v-5a.5.5 0 0 0-.33-.48l-.08-.02H9Zm5.12-.84a.5.5 0 0 0-.64-.05l-.07.06-2.62 2.71a.5.5 0 0 0-.05.63l.06.07 2.61 2.62c.17.17.43.2.62.07l.08-.06 2.76-2.63a.5.5 0 0 0 .05-.64l-.05-.06-2.75-2.72Z\"/>","arrow_clockwise_f":"<path d=\"M4 10a6 6 0 0 1 9.97-4.5h-1.22a.75.75 0 0 0 0 1.5h3c.41 0 .75-.34.75-.75v-3a.75.75 0 0 0-1.5 0v1.16a7.5 7.5 0 1 0 2.5 5.31.75.75 0 0 0-1.5.06V10a6 6 0 0 1-12 0Z\"/>","arrow_clockwise":"<path d=\"M4 10a6 6 0 0 1 10.47-4H12.5a.5.5 0 0 0 0 1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-1 0v1.6a7 7 0 1 0 1.98 4.36.5.5 0 1 0-1 .08L16 10a6 6 0 0 1-12 0Z\"/>","arrow_left_f":"<path d=\"M8.73 16.8a.75.75 0 0 0 1.03-1.1l-5.24-4.95h12.73a.75.75 0 0 0 0-1.5H4.52l5.24-4.96A.75.75 0 1 0 8.73 3.2L2.31 9.27a1 1 0 0 0 0 1.46l6.42 6.07Z\"/>","arrow_left":"<path d=\"M9.16 16.87a.5.5 0 1 0 .67-.74L3.67 10.5H17.5a.5.5 0 0 0 0-1H3.67l6.16-5.63a.5.5 0 0 0-.67-.74L2.24 9.44a.75.75 0 0 0 0 1.11l6.92 6.32Z\"/>","attach_f":"<path d=\"m5.28 10.6 5.3-5.3a2.75 2.75 0 1 1 3.9 3.9L8.1 15.55a1.25 1.25 0 1 1-1.77-1.77L12 8.13a.75.75 0 0 0-1.06-1.06l-5.66 5.66a2.75 2.75 0 0 0 3.89 3.89l6.36-6.36a4.25 4.25 0 0 0-6-6.02l-5.31 5.3a.75.75 0 0 0 1.06 1.07Z\"/>","attach":"<path d=\"m4.83 10.48 5.65-5.65a3 3 0 0 1 4.25 4.24L8 15.8a1.5 1.5 0 0 1-2.12-2.12l6-6.01a.5.5 0 1 0-.7-.71l-6 6.01a2.5 2.5 0 0 0 3.53 3.54l6.71-6.72a4 4 0 1 0-5.65-5.66L4.12 9.78a.5.5 0 0 0 .7.7Z\"/>","board_f":"<path d=\"M9.5 3v4H3V6a3 3 0 0 1 3-3h3.5Zm1 0v9H17V6a3 3 0 0 0-3-3h-3.5ZM17 13h-6.5v4H14a3 3 0 0 0 3-3v-1Zm-7.5 4V8H3v6a3 3 0 0 0 3 3h3.5Z\"/>","board":"<path d=\"M3 6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6Zm3-2a2 2 0 0 0-2 2v1.06L9.5 7V4H6Zm4.5 0v8H16V6a2 2 0 0 0-2-2h-3.5Zm5.5 9h-5.5v3H14a2 2 0 0 0 2-2v-1Zm-6.5 3V8L4 8.06V14c0 1.1.9 2 2 2h3.5Z\"/>","book_f":"<path d=\"M6 2a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h9.5a.5.5 0 0 0 0-1H6a1 1 0 0 1-1-1h10a1 1 0 0 0 1-1V4a2 2 0 0 0-2-2H6Zm.75 2.5h6.5a.75.75 0 0 1 0 1.5h-6.5a.75.75 0 0 1 0-1.5Z\"/>","book":"<path d=\"M6 5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V5Zm1 0v1h6V5H7ZM4 4v12c0 1.1.9 2 2 2h9.5a.5.5 0 0 0 0-1H6a1 1 0 0 1-1-1h10a1 1 0 0 0 1-1V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2Zm10-1a1 1 0 0 1 1 1v11H5V4a1 1 0 0 1 1-1h8Z\"/>","calendar_add_f":"<path d=\"M17 7v2.6A5.5 5.5 0 0 0 9.6 17H5.5A2.5 2.5 0 0 1 3 14.5V7h14Zm-2.5-4A2.5 2.5 0 0 1 17 5.5V6H3v-.5A2.5 2.5 0 0 1 5.5 3h9ZM19 14.5a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Zm-4-2a.5.5 0 0 0-1 0V14h-1.5a.5.5 0 0 0 0 1H14v1.5a.5.5 0 0 0 1 0V15h1.5a.5.5 0 0 0 0-1H15v-1.5Z\"/>","calendar_add":"<path d=\"M14.5 3A2.5 2.5 0 0 1 17 5.5v4.1c-.32-.16-.65-.3-1-.4V7H4v7.5c0 .83.67 1.5 1.5 1.5h3.7c.1.35.24.68.4 1H5.5A2.5 2.5 0 0 1 3 14.5v-9A2.5 2.5 0 0 1 5.5 3h9Zm0 1h-9C4.67 4 4 4.67 4 5.5V6h12v-.5c0-.83-.67-1.5-1.5-1.5ZM19 14.5a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Zm-4-2a.5.5 0 0 0-1 0V14h-1.5a.5.5 0 0 0 0 1H14v1.5a.5.5 0 0 0 1 0V15h1.5a.5.5 0 0 0 0-1H15v-1.5Z\"/>","calendar_clock_f":"<path d=\"M17 5.5A2.5 2.5 0 0 0 14.5 3h-9A2.5 2.5 0 0 0 3 5.5V6h14v-.5Zm0 4.1V7H3v7.5A2.5 2.5 0 0 0 5.5 17h4.1A5.5 5.5 0 0 1 17 9.6ZM14.5 19a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Zm-.5-6.5a.5.5 0 0 1 1 0V14h1a.5.5 0 0 1 0 1h-1.5a.5.5 0 0 1-.5-.5v-2Z\"/>","calendar_clock":"<path d=\"M17 5.5A2.5 2.5 0 0 0 14.5 3h-9A2.5 2.5 0 0 0 3 5.5v9A2.5 2.5 0 0 0 5.5 17h4.1c-.16-.32-.3-.65-.4-1H5.5A1.5 1.5 0 0 1 4 14.5V7h12v2.2c.35.1.68.24 1 .4V5.5ZM5.5 4h9c.83 0 1.5.67 1.5 1.5V6H4v-.5C4 4.67 4.67 4 5.5 4Zm9 15a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Zm-.5-6.5a.5.5 0 0 1 1 0V14h1a.5.5 0 0 1 0 1h-1.5a.5.5 0 0 1-.5-.5v-2Z\"/>","calendar_ltr_f":"<path d=\"M5.5 3A2.5 2.5 0 0 0 3 5.5V6h14v-.5A2.5 2.5 0 0 0 14.5 3h-9ZM17 7H3v7.5A2.5 2.5 0 0 0 5.5 17h9a2.5 2.5 0 0 0 2.5-2.5V7Zm-9 3a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1 4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm4-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1 4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm4-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z\"/>","calendar_ltr":"<path d=\"M7 11a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm1 2a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm2-2a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm1 2a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm2-2a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm4-5.5A2.5 2.5 0 0 0 14.5 3h-9A2.5 2.5 0 0 0 3 5.5v9A2.5 2.5 0 0 0 5.5 17h9a2.5 2.5 0 0 0 2.5-2.5v-9ZM4 7h12v7.5c0 .83-.67 1.5-1.5 1.5h-9A1.5 1.5 0 0 1 4 14.5V7Zm1.5-3h9c.83 0 1.5.67 1.5 1.5V6H4v-.5C4 4.67 4.67 4 5.5 4Z\"/>","calendar_month_f":"<path d=\"M14.5 3A2.5 2.5 0 0 1 17 5.5v9a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 3 14.5v-9A2.5 2.5 0 0 1 5.5 3h9ZM7 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm3 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2ZM7 7a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm3 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm3 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z\"/>","calendar_month":"<path d=\"M14.5 3A2.5 2.5 0 0 1 17 5.5v9a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 3 14.5v-9A2.5 2.5 0 0 1 5.5 3h9Zm0 1h-9C4.67 4 4 4.67 4 5.5v9c0 .83.67 1.5 1.5 1.5h9c.83 0 1.5-.67 1.5-1.5v-9c0-.83-.67-1.5-1.5-1.5ZM7 11a1 1 0 1 1 0 2 1 1 0 0 1 0-2Zm3 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2ZM7 7a1 1 0 1 1 0 2 1 1 0 0 1 0-2Zm3 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2Zm3 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z\"/>","call_f":"<path d=\"M6.99 2.07A2 2 0 0 1 9.3 3l.08.15.66 1.47a2.5 2.5 0 0 1-.44 2.72l-.13.13-1.05.98c-.19.17-.04.86.64 2.04.6 1.06 1.1 1.56 1.35 1.58h.1l2.05-.64a1.5 1.5 0 0 1 1.56.45l.1.11 1.35 1.88a2 2 0 0 1-.13 2.5l-.12.12-.54.52a3.5 3.5 0 0 1-3.72.7c-1.93-.78-3.69-2.56-5.29-5.33S3.52 7.2 3.82 5.14a3.5 3.5 0 0 1 2.26-2.8l.19-.06.72-.21Z\"/>","call":"<path d=\"m6.99 2.07-.72.21a3.5 3.5 0 0 0-2.45 2.86c-.3 2.06.36 4.48 1.96 7.25 1.6 2.77 3.36 4.55 5.3 5.33a3.5 3.5 0 0 0 3.7-.7l.55-.52a2 2 0 0 0 .25-2.62L14.22 12a1.5 1.5 0 0 0-1.65-.56l-2.05.63-.06.01c-.22.04-.74-.45-1.4-1.58-.67-1.18-.82-1.87-.63-2.04l1.05-.98a2.5 2.5 0 0 0 .57-2.85l-.66-1.47a2 2 0 0 0-2.4-1.1Zm1.49 1.5.66 1.47a1.5 1.5 0 0 1-.35 1.71l-1.04.98c-.67.63-.45 1.71.45 3.27.85 1.47 1.62 2.19 2.45 2.06l.12-.02 2.09-.64a.5.5 0 0 1 .55.19l1.36 1.88a1 1 0 0 1-.13 1.3l-.54.52a2.5 2.5 0 0 1-2.65.5c-1.7-.68-3.3-2.3-4.8-4.9-1.5-2.59-2.1-4.8-1.84-6.61a2.5 2.5 0 0 1 1.75-2.04l.72-.22a1 1 0 0 1 1.2.55Z\"/>","chat_bubbles_question_f":"<path d=\"M8.5 2a6.5 6.5 0 0 0-5.67 9.67l-.8 2.08a1 1 0 0 0 1.2 1.32l2.5-.7A6.5 6.5 0 1 0 8.5 2Zm0 3.9c-.37.07-.76.3-1.07.85a.5.5 0 1 1-.86-.5A2.57 2.57 0 0 1 8.3 4.92c.65-.13 1.3.04 1.8.36.48.32.87.84.88 1.47.01.66-.39 1.25-1.12 1.68-.5.3-.7.5-.77.63-.07.11-.09.21-.09.44a.5.5 0 0 1-1 0c0-.27.01-.61.24-.97.2-.34.57-.64 1.11-.96.54-.32.63-.62.63-.8 0-.2-.14-.46-.44-.65-.29-.2-.67-.3-1.05-.22Zm.25 6.6a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Zm-2.21 3.24a6.49 6.49 0 0 0 7.7 1.64l2.49.7a1 1 0 0 0 1.2-1.33l-.8-2.08a6.47 6.47 0 0 0-1.37-8.04c.15.56.23 1.15.24 1.76a5.47 5.47 0 0 1 .16 5.98l-.13.2.97 2.54-2.86-.8-.18.09A5.47 5.47 0 0 1 8.3 16a7.5 7.5 0 0 1-1.76-.26Z\"/>","chat_bubbles_question":"<path d=\"M8.5 5.9c-.37.07-.76.3-1.07.85a.5.5 0 1 1-.86-.5A2.57 2.57 0 0 1 8.3 4.92c.65-.13 1.3.04 1.8.36.48.32.87.84.88 1.47.01.66-.39 1.25-1.12 1.68-.5.3-.7.5-.77.63-.07.11-.09.21-.09.44a.5.5 0 0 1-1 0c0-.27.01-.61.24-.97.2-.34.57-.64 1.11-.96.54-.32.63-.62.63-.8 0-.2-.14-.46-.44-.65-.29-.2-.67-.3-1.05-.22Zm.25 6.6a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM8.5 2a6.5 6.5 0 0 0-5.67 9.67l-.8 2.08a1 1 0 0 0 1.2 1.32l2.5-.7A6.5 6.5 0 1 0 8.5 2ZM3 8.5a5.5 5.5 0 1 1 3 4.9l-.18-.09-2.86.8.97-2.53-.13-.21A5.47 5.47 0 0 1 3 8.5Zm8.46 9.5a6.49 6.49 0 0 1-4.92-2.26A7.5 7.5 0 0 0 8.3 16a5.47 5.47 0 0 0 5.66.4l.18-.09 2.86.8-.97-2.53.13-.21A5.47 5.47 0 0 0 16 8.39c0-.6-.1-1.2-.24-1.76a6.48 6.48 0 0 1 1.38 8.04l.8 2.08a1 1 0 0 1-1.21 1.32l-2.49-.7c-.84.4-1.78.63-2.78.63Z\"/>","chat_f":"<path d=\"M10 2a8 8 0 1 1-3.61 15.14l-.12-.07-3.65.92a.5.5 0 0 1-.62-.45v-.08l.01-.08.92-3.64-.07-.12a7.95 7.95 0 0 1-.83-2.9l-.02-.37L2 10a8 8 0 0 1 8-8Zm.5 9H7.41a.5.5 0 0 0 0 1H10.59a.5.5 0 0 0 0-1h-.09Zm2-3H7.41a.5.5 0 0 0 0 1h5.18a.5.5 0 0 0 0-1h-.09Z\"/>","chat":"<path d=\"M10 2a8 8 0 1 1-3.61 15.14l-.12-.07-3.65.92a.5.5 0 0 1-.62-.45v-.08l.01-.08.92-3.64-.07-.12a7.95 7.95 0 0 1-.83-2.9l-.02-.37L2 10a8 8 0 0 1 8-8Zm0 1a7 7 0 0 0-6.1 10.42.5.5 0 0 1 .06.28l-.02.1-.75 3.01 3.02-.75a.5.5 0 0 1 .19-.01l.09.02.09.04A7 7 0 1 0 10 3Zm.5 8a.5.5 0 0 1 .09 1H7.5a.5.5 0 0 1-.09-1h3.09Zm2-3a.5.5 0 0 1 .09 1H7.5a.5.5 0 0 1-.09-1h5.09Z\"/>","checkmark_circle_f":"<path d=\"M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm3.36 5.65a.5.5 0 0 0-.64-.06l-.07.06L9 11.3 7.35 9.65l-.07-.06a.5.5 0 0 0-.7.7l.07.07 2 2 .07.06c.17.11.4.11.56 0l.07-.06 4-4 .07-.08a.5.5 0 0 0-.06-.63Z\"/>","checkmark_circle":"<path d=\"M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm0 1a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm3.36 4.65c.17.17.2.44.06.63l-.06.07-4 4a.5.5 0 0 1-.64.07l-.07-.06-2-2a.5.5 0 0 1 .63-.77l.07.06L9 11.3l3.65-3.65c.2-.2.51-.2.7 0Z\"/>","checkmark_f":"<path d=\"M7.03 13.9 3.56 10a.75.75 0 0 0-1.12 1l4 4.5c.29.32.79.34 1.09.03l10.5-10.5a.75.75 0 0 0-1.06-1.06l-9.94 9.94Z\"/>","checkmark":"<path d=\"M3.37 10.17a.5.5 0 0 0-.74.66l4 4.5c.19.22.52.23.72.02l10.5-10.5a.5.5 0 0 0-.7-.7L7.02 14.27l-3.65-4.1Z\"/>","chevron_down_f":"<path d=\"M15.8 7.73c.28.3.27.78-.03 1.06l-5.25 5a.75.75 0 0 1-1.04 0l-5.25-5a.75.75 0 0 1 1.04-1.08L10 12.2l4.73-4.5a.75.75 0 0 1 1.06.02Z\"/>","chevron_down":"<path d=\"M15.85 7.65c.2.2.2.5 0 .7l-5.46 5.49a.55.55 0 0 1-.78 0L4.15 8.35a.5.5 0 1 1 .7-.7L10 12.8l5.15-5.16c.2-.2.5-.2.7 0Z\"/>","chevron_left_f":"<path d=\"M12.27 15.8a.75.75 0 0 1-1.06-.03l-5-5.25a.75.75 0 0 1 0-1.04l5-5.25a.75.75 0 1 1 1.08 1.04L7.8 10l4.5 4.73c.29.3.28.78-.02 1.06Z\"/>","chevron_left":"<path d=\"M12.35 15.85a.5.5 0 0 1-.7 0L6.16 10.4a.55.55 0 0 1 0-.78l5.49-5.46a.5.5 0 1 1 .7.7L7.2 10l5.16 5.15c.2.2.2.5 0 .7Z\"/>","chevron_right_f":"<path d=\"M7.73 4.2a.75.75 0 0 1 1.06.03l5 5.25c.28.3.28.75 0 1.04l-5 5.25a.75.75 0 1 1-1.08-1.04L12.2 10l-4.5-4.73a.75.75 0 0 1 .02-1.06Z\"/>","chevron_right":"<path d=\"M7.65 4.15c.2-.2.5-.2.7 0l5.49 5.46c.21.22.21.57 0 .78l-5.49 5.46a.5.5 0 0 1-.7-.7L12.8 10 7.65 4.85a.5.5 0 0 1 0-.7Z\"/>","clipboard_task_list_ltr_f":"<path d=\"M8.5 2c-.65 0-1.2.42-1.41 1H5.5C4.67 3 4 3.67 4 4.5v12c0 .83.67 1.5 1.5 1.5h9c.83 0 1.5-.67 1.5-1.5v-12c0-.83-.67-1.5-1.5-1.5h-1.59c-.2-.58-.76-1-1.41-1h-3ZM8 3.5c0-.28.22-.5.5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5Zm1.35 4.35L7.6 9.6a.5.5 0 0 1-.69.02l-.75-.69a.5.5 0 1 1 .68-.73l.4.36 1.4-1.41a.5.5 0 1 1 .71.7Zm0 4.3c.2.2.2.5 0 .7L7.6 14.6a.5.5 0 0 1-.69.02l-.75-.69a.5.5 0 0 1 .68-.73l.4.36 1.4-1.41c.2-.2.52-.2.71 0Zm1.65.6h2.5a.5.5 0 0 1 0 1H11a.5.5 0 0 1 0-1Zm-.5-4.5c0-.28.22-.5.5-.5h2.5a.5.5 0 0 1 0 1H11a.5.5 0 0 1-.5-.5Z\"/>","clipboard_task_list_ltr":"<path d=\"M9.35 7.85a.5.5 0 0 0-.7-.7l-1.42 1.4-.4-.35a.5.5 0 0 0-.67.73l.75.69c.2.18.5.17.7-.02l1.74-1.75Zm0 4.3c.2.2.2.5 0 .7L7.6 14.6a.5.5 0 0 1-.69.02l-.75-.69a.5.5 0 0 1 .68-.73l.4.36 1.4-1.41c.2-.2.52-.2.71 0Zm1.65.6a.5.5 0 0 0 0 1h2.5a.5.5 0 0 0 0-1H11Zm-.5-4.5c0-.28.22-.5.5-.5h2.5a.5.5 0 0 1 0 1H11a.5.5 0 0 1-.5-.5ZM8.5 2c-.65 0-1.2.42-1.41 1H5.5C4.67 3 4 3.67 4 4.5v12c0 .83.67 1.5 1.5 1.5h9c.83 0 1.5-.67 1.5-1.5v-12c0-.83-.67-1.5-1.5-1.5h-1.59c-.2-.58-.76-1-1.41-1h-3ZM8 3.5c0-.28.22-.5.5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5ZM5.5 4h1.59c.2.58.76 1 1.41 1h3c.65 0 1.2-.42 1.41-1h1.59c.28 0 .5.22.5.5v12a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5v-12c0-.28.22-.5.5-.5Z\"/>","clock_f":"<path d=\"M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm-.5 3a.5.5 0 0 0-.5.5v5.09a.5.5 0 0 0 .5.41h3.09a.5.5 0 0 0-.09-1H10V5.41A.5.5 0 0 0 9.5 5Z\"/>","clock":"<path d=\"M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm0 1a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm-.5 2a.5.5 0 0 1 .5.41V10h2.5a.5.5 0 0 1 .09 1H9.5a.5.5 0 0 1-.5-.41V5.5c0-.28.22-.5.5-.5Z\"/>","compose_f":"<path d=\"M10.25 4a.75.75 0 0 1 0 1.5h-4c-.97 0-1.75.78-1.75 1.75v6.5c0 .97.78 1.75 1.75 1.75h6.5c.97 0 1.75-.78 1.75-1.75v-4a.75.75 0 1 1 1.5 0v4c0 1.8-1.46 3.25-3.25 3.25h-6.5A3.25 3.25 0 0 1 3 13.75v-6.5C3 5.45 4.46 4 6.25 4h4Zm5.47-.78a.75.75 0 0 1 1.06 1.06l-7.19 7.19L8 12l.53-1.6 7.19-7.18Z\"/>","compose":"<path d=\"M10.5 4a.5.5 0 0 1 0 1H6a2 2 0 0 0-2 2v7c0 1.1.9 2 2 2h7a2 2 0 0 0 2-2V9.5a.5.5 0 1 1 1 0V14a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h4.5Zm5.65-.85a.5.5 0 1 1 .7.7l-7.79 7.8L8 12l.35-1.06 7.8-7.8Z\"/>","data_bar_vertical_f":"<path d=\"M5 3a2 2 0 0 0-2 2v10a2 2 0 1 0 4 0V5a2 2 0 0 0-2-2Zm5 3a2 2 0 0 0-2 2v7a2 2 0 1 0 4 0V8a2 2 0 0 0-2-2Zm5 3a2 2 0 0 0-2 2v4a2 2 0 1 0 4 0v-4a2 2 0 0 0-2-2Z\"/>","data_bar_vertical":"<path d=\"M5 3a2 2 0 0 0-2 2v10a2 2 0 1 0 4 0V5a2 2 0 0 0-2-2ZM4 5a1 1 0 0 1 2 0v10a1 1 0 1 1-2 0V5Zm4 3a2 2 0 1 1 4 0v7a2 2 0 1 1-4 0V8Zm2-1a1 1 0 0 0-1 1v7a1 1 0 1 0 2 0V8a1 1 0 0 0-1-1Zm3 4a2 2 0 1 1 4 0v4a2 2 0 1 1-4 0v-4Zm2-1a1 1 0 0 0-1 1v4a1 1 0 1 0 2 0v-4a1 1 0 0 0-1-1Z\"/>","dismiss_f":"<path d=\"m3.9 4.05.07-.08a.75.75 0 0 1 .98-.07l.08.07L10 8.94l4.97-4.97a.75.75 0 0 1 .98-.07l.08.07c.27.27.3.68.07.98l-.07.08L11.06 10l4.97 4.97c.27.27.3.68.07.98l-.07.08a.75.75 0 0 1-.98.07l-.08-.07L10 11.06l-4.97 4.97a.75.75 0 0 1-.98.07l-.08-.07a.75.75 0 0 1-.07-.98l.07-.08L8.94 10 3.97 5.03a.75.75 0 0 1-.07-.98l.07-.08-.07.08Z\"/>","dismiss":"<path d=\"m4.09 4.22.06-.07a.5.5 0 0 1 .63-.06l.07.06L10 9.29l5.15-5.14a.5.5 0 0 1 .63-.06l.07.06c.18.17.2.44.06.63l-.06.07L10.71 10l5.14 5.15c.18.17.2.44.06.63l-.06.07a.5.5 0 0 1-.63.06l-.07-.06L10 10.71l-5.15 5.14a.5.5 0 0 1-.63.06l-.07-.06a.5.5 0 0 1-.06-.63l.06-.07L9.29 10 4.15 4.85a.5.5 0 0 1-.06-.63l.06-.07-.06.07Z\"/>","document_f":"<path d=\"M10 2v4.5c0 .83.67 1.5 1.5 1.5H16v8.5c0 .83-.67 1.5-1.5 1.5h-9A1.5 1.5 0 0 1 4 16.5v-13C4 2.67 4.67 2 5.5 2H10Zm1 .25V6.5c0 .28.22.5.5.5h4.25L11 2.25Z\"/>","document":"<path d=\"M6 2a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V7.41c0-.4-.16-.78-.44-1.06l-3.91-3.91A1.5 1.5 0 0 0 10.59 2H6ZM5 4a1 1 0 0 1 1-1h4v3.5c0 .83.67 1.5 1.5 1.5H15v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4Zm9.8 3h-3.3a.5.5 0 0 1-.5-.5V3.2L14.8 7Z\"/>","emoji_add_f":"<path d=\"M17 9a8 8 0 1 0-7.41 7.98A5.48 5.48 0 0 1 9.02 14H9a5 5 0 0 1-3.89-1.86.5.5 0 1 1 .78-.63A4 4 0 0 0 9.2 13a5.5 5.5 0 0 1 7.77-3.41L17 9Zm-6.5-1.5a1 1 0 1 1 2 0 1 1 0 0 1-2 0Zm-5 0a1 1 0 1 1 2 0 1 1 0 0 1-2 0Zm13.5 7a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Zm-4-2a.5.5 0 0 0-1 0V14h-1.5a.5.5 0 0 0 0 1H14v1.5a.5.5 0 0 0 1 0V15h1.5a.5.5 0 0 0 0-1H15v-1.5Z\"/>","emoji_add":"<path d=\"M17 9a8 8 0 1 0-7.41 7.98A5.46 5.46 0 0 1 9.2 16H9a7 7 0 1 1 7-6.8c.34.1.67.23.98.39L17 9Zm-7.98 5c.03-.34.1-.68.19-1H9a4 4 0 0 1-3.11-1.49.5.5 0 1 0-.78.63A5 5 0 0 0 9 14h.02Zm3.48-6.5a1 1 0 1 0-2 0 1 1 0 0 0 2 0Zm-5 0a1 1 0 1 0-2 0 1 1 0 0 0 2 0Zm11.5 7a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Zm-4-2a.5.5 0 0 0-1 0V14h-1.5a.5.5 0 0 0 0 1H14v1.5a.5.5 0 0 0 1 0V15h1.5a.5.5 0 0 0 0-1H15v-1.5Z\"/>","emoji_f":"<path d=\"M18 10a8 8 0 1 0-16 0 8 8 0 0 0 16 0Zm-6.5-1.5a1 1 0 1 1 2 0 1 1 0 0 1-2 0Zm-5 0a1 1 0 1 1 2 0 1 1 0 0 1-2 0Zm.39 4.01a4 4 0 0 0 6.22 0 .5.5 0 1 1 .78.63 5 5 0 0 1-7.78 0 .5.5 0 1 1 .78-.63Z\"/>","emoji":"<path d=\"M18 10a8 8 0 1 0-16 0 8 8 0 0 0 16 0ZM3 10a7 7 0 1 1 14 0 7 7 0 0 1-14 0Zm10.5-1.5a1 1 0 1 0-2 0 1 1 0 0 0 2 0Zm-5 0a1 1 0 1 0-2 0 1 1 0 0 0 2 0Zm-1.61 4.01a.5.5 0 1 0-.78.63 5 5 0 0 0 7.78 0 .5.5 0 1 0-.78-.63 4 4 0 0 1-6.22 0Z\"/>","filter_f":"<path d=\"M12.25 13.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5h4.5Zm2-4.25a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1 0-1.5h8.5Zm2-4.25a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1 0-1.5h12.5Z\"/>","filter":"<path d=\"M7.5 13h5a.5.5 0 0 1 .09 1H7.5a.5.5 0 0 1-.09-1h5.09-5Zm-2-4h9a.5.5 0 0 1 .09 1H5.5a.5.5 0 0 1-.09-1h9.09-9Zm-2-4h13a.5.5 0 0 1 .09 1H3.5a.5.5 0 0 1-.09-1H16.5h-13Z\"/>","form_f":"<path d=\"M6.5 10a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1Zm.5 3.5a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0ZM3 6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6Zm2.5-1a.5.5 0 0 0 0 1h9a.5.5 0 0 0 0-1h-9Zm1 6a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM8 13.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0Zm1-4c0 .28.22.5.5.5h5a.5.5 0 0 0 0-1h-5a.5.5 0 0 0-.5.5Zm.5 3.5a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5Z\"/>","form":"<path d=\"M5.5 5a.5.5 0 0 0 0 1h9a.5.5 0 0 0 0-1h-9Zm1 6a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm0-1a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1ZM8 13.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Zm-1 0a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0Zm2-4c0-.28.22-.5.5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5Zm.5 3.5a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5ZM6 3a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3V6a3 3 0 0 0-3-3H6ZM4 6c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Z\"/>","gif_f":"<path d=\"M15.4 3c1.39 0 2.52 1.19 2.6 2.68v8.48c0 1.51-1.09 2.75-2.45 2.84H4.6c-1.39 0-2.52-1.19-2.6-2.68V5.84C2 4.33 3.09 3.1 4.45 3H15.4ZM6.85 7C5.18 7 4 8.32 4 10c0 1.64 1.26 3 2.85 3 1.2 0 2.07-.8 2.14-1.63l.01-.12V9.9a.52.52 0 0 0-.44-.4h-.1l-.92-.01h-.1A.51.51 0 0 0 7 10c0 .25.2.45.44.5h.48v.83c-.07.32-.47.67-1.07.67-.96 0-1.77-.88-1.77-2 0-1.17.74-2 1.77-2 .46 0 .83.07 1.1.2.26.12.59.02.72-.23.14-.24.03-.55-.24-.67C8 7.1 7.47 7 6.85 7ZM11 7a.5.5 0 0 0-.5.41v5.18a.5.5 0 0 0 1 0V7.41A.5.5 0 0 0 11 7Zm4.5 0h-2a.5.5 0 0 0-.5.41v5.18a.5.5 0 0 0 1 0V11h1.59a.5.5 0 0 0 0-1H14V8h1.59a.5.5 0 0 0 0-1h-.09Z\"/>","gif":"<path d=\"M15.4 3c1.39 0 2.52 1.19 2.6 2.68v8.48c0 1.51-1.09 2.75-2.45 2.84H4.6c-1.39 0-2.52-1.19-2.6-2.68V5.84C2 4.33 3.09 3.1 4.45 3H15.4Zm-.15 1H4.75C3.82 4 3.07 4.8 3 5.8V14.07c0 1.02.72 1.86 1.63 1.93h10.62c.93 0 1.68-.8 1.75-1.8V5.93c0-1.02-.72-1.86-1.63-1.93h-.12Zm-8.4 3c.62 0 1.15.1 1.58.3.27.12.38.43.24.67a.56.56 0 0 1-.72.22C7.68 8.07 7.3 8 6.85 8c-1.03 0-1.77.83-1.77 2 0 1.12.81 2 1.77 2 .6 0 1-.35 1.06-.67v-.83h-.37c-.3 0-.54-.22-.54-.5 0-.25.2-.45.44-.5h1.02c.26 0 .49.18.53.41l.01.1v1.24C9 12.12 8.11 13 6.85 13A2.92 2.92 0 0 1 4 10c0-1.68 1.18-3 2.85-3ZM11 7a.5.5 0 0 1 .5.41v5.09a.5.5 0 0 1-1 .09V7.5c0-.28.22-.5.5-.5Zm4.5 0a.5.5 0 0 1 .09 1H14v2h1.5a.5.5 0 0 1 .09 1H14v1.5a.5.5 0 0 1-1 .09V7.5c0-.28.22-.5.5-.5h2Z\"/>","globe_f":"<path d=\"M7.99 4.18c-.28.66-.5 1.45-.67 2.32h5.36c-.17-.87-.4-1.66-.67-2.32-.3-.73-.65-1.3-1-1.66C10.64 2.15 10.3 2 10 2c-.3 0-.65.15-1 .52-.36.37-.71.93-1.01 1.66Zm-.1-1.9c-.31.43-.59.94-.83 1.52-.32.78-.58 1.7-.76 2.7H2.8c1-2.05 2.85-3.6 5.1-4.22Zm4.22 0c.31.43.59.94.83 1.52.32.78.58 1.7.76 2.7h3.5a8.02 8.02 0 0 0-5.09-4.22Zm5.5 5.22h-3.76a20.52 20.52 0 0 1 0 5h3.75a8 8 0 0 0 0-5Zm-.41 6h-3.5c-.18 1-.44 1.92-.76 2.7-.24.58-.52 1.1-.83 1.52a8.02 8.02 0 0 0 5.09-4.22ZM10 18c.3 0 .65-.15 1-.52.36-.37.71-.93 1.01-1.66.28-.66.5-1.45.67-2.32H7.32c.17.87.4 1.66.67 2.32.3.73.65 1.3 1 1.66.36.37.7.52 1.01.52Zm-2.1-.28a8.02 8.02 0 0 1-5.1-4.22h3.5c.18 1 .44 1.92.76 2.7.24.58.52 1.1.83 1.52ZM2.4 12.5h3.75a20.52 20.52 0 0 1 0-5H2.4a8 8 0 0 0 0 5ZM7 10c0-.87.06-1.71.16-2.5h5.68a19.44 19.44 0 0 1 0 5H7.16C7.06 11.71 7 10.87 7 10Z\"/>","globe":"<path d=\"M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm0-15c.66 0 1.4.59 2.02 1.9.22.47.4 1.01.56 1.6H7.42c.15-.59.34-1.13.56-1.6C8.59 3.6 9.34 3 10 3ZM7.07 4.49c-.27.59-.5 1.27-.68 2.01H3.94A7.02 7.02 0 0 1 7.7 3.38c-.24.33-.45.7-.64 1.1ZM6.2 7.5a15.97 15.97 0 0 0 0 5H3.46a6.98 6.98 0 0 1 0-5h2.73Zm.2 6c.17.74.4 1.42.68 2.01.19.4.4.78.64 1.1a7.02 7.02 0 0 1-3.77-3.11h2.45Zm1.03 0h5.16a9.25 9.25 0 0 1-.56 1.6C11.41 16.4 10.66 17 10 17c-.66 0-1.4-.59-2.02-1.9-.22-.47-.4-1.01-.56-1.6Zm5.37-1H7.21a14.87 14.87 0 0 1 0-5h5.58a14.86 14.86 0 0 1 0 5Zm.82 1h2.45a7.02 7.02 0 0 1-3.77 3.12c.24-.33.45-.7.64-1.1.27-.6.5-1.28.68-2.02Zm2.93-1h-2.73a15.97 15.97 0 0 0 0-5h2.73a6.98 6.98 0 0 1 0 5Zm-4.25-9.12a7.02 7.02 0 0 1 3.77 3.12h-2.45a10.5 10.5 0 0 0-.68-2.01c-.19-.4-.4-.78-.64-1.1Z\"/>","grid_f":"<path d=\"M7.5 11c.83 0 1.5.67 1.5 1.5v4c0 .83-.67 1.5-1.5 1.5h-4A1.5 1.5 0 0 1 2 16.5v-4c0-.83.67-1.5 1.5-1.5h4Zm9 0c.83 0 1.5.67 1.5 1.5v4c0 .83-.67 1.5-1.5 1.5h-4a1.5 1.5 0 0 1-1.5-1.5v-4c0-.83.67-1.5 1.5-1.5h4Zm-9-9C8.33 2 9 2.67 9 3.5v4C9 8.33 8.33 9 7.5 9h-4A1.5 1.5 0 0 1 2 7.5v-4C2 2.67 2.67 2 3.5 2h4Zm9 0c.83 0 1.5.67 1.5 1.5v4c0 .83-.67 1.5-1.5 1.5h-4A1.5 1.5 0 0 1 11 7.5v-4c0-.83.67-1.5 1.5-1.5h4Z\"/>","grid":"<path d=\"M7.5 11c.83 0 1.5.67 1.5 1.5v4c0 .83-.67 1.5-1.5 1.5h-4A1.5 1.5 0 0 1 2 16.5v-4c0-.83.67-1.5 1.5-1.5h4Zm9 0c.83 0 1.5.67 1.5 1.5v4c0 .83-.67 1.5-1.5 1.5h-4a1.5 1.5 0 0 1-1.5-1.5v-4c0-.83.67-1.5 1.5-1.5h4Zm-9 1h-4a.5.5 0 0 0-.5.5v4c0 .28.22.5.5.5h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 0-.5-.5Zm9 0h-4a.5.5 0 0 0-.5.5v4c0 .28.22.5.5.5h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 0-.5-.5Zm-9-10C8.33 2 9 2.67 9 3.5v4C9 8.33 8.33 9 7.5 9h-4A1.5 1.5 0 0 1 2 7.5v-4C2 2.67 2.67 2 3.5 2h4Zm9 0c.83 0 1.5.67 1.5 1.5v4c0 .83-.67 1.5-1.5 1.5h-4A1.5 1.5 0 0 1 11 7.5v-4c0-.83.67-1.5 1.5-1.5h4Zm-9 1h-4a.5.5 0 0 0-.5.5v4c0 .28.22.5.5.5h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 0-.5-.5Zm9 0h-4a.5.5 0 0 0-.5.5v4c0 .28.22.5.5.5h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 0-.5-.5Z\"/>","image_f":"<path d=\"M6 3a3 3 0 0 0-3 3v8c0 .65.2 1.25.56 1.74l5.39-5.3a1.5 1.5 0 0 1 2.1 0l5.4 5.3c.34-.49.55-1.1.55-1.74V6a3 3 0 0 0-3-3H6Zm0 14c-.65 0-1.24-.2-1.73-.55l5.38-5.3c.2-.2.5-.2.7 0l5.38 5.3c-.49.35-1.08.55-1.73.55H6Zm6.5-8.25a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5Z\"/>","image":"<path d=\"M14 7.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Zm-1 0a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0ZM3 6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6Zm3-2a2 2 0 0 0-2 2v8c0 .37.1.72.28 1.02l4.67-4.59a1.5 1.5 0 0 1 2.1 0l4.67 4.59c.18-.3.28-.65.28-1.02V6a2 2 0 0 0-2-2H6Zm0 12h8a2 2 0 0 0 1.01-.27l-4.66-4.58a.5.5 0 0 0-.7 0l-4.66 4.58A2 2 0 0 0 6 16Z\"/>","info_f":"<path d=\"M18 10a8 8 0 1 0-16 0 8 8 0 0 0 16 0ZM9.5 8.91a.5.5 0 0 1 1 0V13.6a.5.5 0 0 1-1 0V8.9Zm-.25-2.16a.75.75 0 1 1 1.5 0 .75.75 0 0 1-1.5 0Z\"/>","info":"<path d=\"M10.5 8.91a.5.5 0 0 0-1 .09v4.6a.5.5 0 0 0 1-.1V8.91Zm.3-2.16a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0ZM18 10a8 8 0 1 0-16 0 8 8 0 0 0 16 0ZM3 10a7 7 0 1 1 14 0 7 7 0 0 1-14 0Z\"/>","lightbulb_f":"<path d=\"m13.07 15-.38 1.6a1.84 1.84 0 0 1-1.67 1.4H9.13c-.82 0-1.54-.52-1.78-1.26l-.04-.14-.38-1.6h6.14ZM10 2c3.31 0 6 2.6 6 5.8 0 1.68-.75 3.22-2.2 4.6a.6.6 0 0 0-.15.2l-.02.09L13.3 14H6.7l-.31-1.31a.6.6 0 0 0-.17-.3A6.32 6.32 0 0 1 4 8.04L4 7.8v-.2A5.91 5.91 0 0 1 10 2Z\"/>","lightbulb":"<path d=\"M10 2c3.31 0 6 2.6 6 5.8 0 1.68-.75 3.22-2.2 4.6a.6.6 0 0 0-.15.2l-.02.09-.94 3.92a1.84 1.84 0 0 1-1.67 1.38l-.15.01H9.13c-.82 0-1.54-.52-1.78-1.26l-.04-.14-.93-3.91a.6.6 0 0 0-.17-.3A6.32 6.32 0 0 1 4 8.04L4 7.8v-.2A5.91 5.91 0 0 1 10 2Zm2.04 13H7.96l.31 1.33.03.1c.1.3.38.52.71.56l.12.01h1.81a.86.86 0 0 0 .75-.53l.03-.1.32-1.37ZM10 3a4.92 4.92 0 0 0-4.98 4.41L5 7.63V8c.06 1.3.68 2.52 1.9 3.67.18.17.32.4.4.64l.05.15.37 1.54h4.57l.38-1.61.05-.16c.09-.21.22-.4.39-.56C14.38 10.47 15 9.18 15 7.8A4.9 4.9 0 0 0 10 3Z\"/>","link_f":"<path d=\"M14 6a4 4 0 0 1 .2 8H12a.75.75 0 0 1-.1-1.5H14a2.5 2.5 0 0 0 .16-5H12a.75.75 0 0 1-.1-1.5H14ZM8 6a.75.75 0 0 1 .1 1.5H6a2.5 2.5 0 0 0-.16 5H8a.75.75 0 0 1 .1 1.5H6a4 4 0 0 1-.2-8H8ZM6.25 9.25h7.5a.75.75 0 0 1 .1 1.5h-7.6a.75.75 0 0 1-.1-1.5h7.6-7.5Z\"/>","link":"<path d=\"M8 6a.5.5 0 0 1 .09 1H6a3 3 0 0 0-.2 6H8a.5.5 0 0 1 .09 1H6a4 4 0 0 1-.22-8H8Zm6 0a4 4 0 0 1 .22 8H12a.5.5 0 0 1-.09-1H14a3 3 0 0 0 .2-6H12a.5.5 0 0 1-.09-1H14ZM6 9.5h8a.5.5 0 0 1 .09 1H6a.5.5 0 0 1-.09-1H14 6Z\"/>","location_f":"<path d=\"M5.05 4.05a7 7 0 1 1 9.9 9.9l-1.13 1.12-2.43 2.37a2 2 0 0 1-2.64.12l-.14-.12-2.04-1.99-1.52-1.5a7 7 0 0 1 0-9.9ZM10 6.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Z\"/>","location":"<path d=\"M5.05 4.05a7 7 0 1 1 9.9 9.9l-1.13 1.12-2.43 2.37a2 2 0 0 1-2.64.12l-.14-.12-2.04-1.99-1.52-1.5a7 7 0 0 1 0-9.9Zm9.2.7a6 6 0 0 0-8.67 8.32l.17.18.58.57 2.98 2.9.09.08a1 1 0 0 0 1.2 0l.1-.08 2.22-2.17 1.32-1.3.18-.18a6 6 0 0 0-.18-8.31ZM10 6.26a2.75 2.75 0 1 1 0 5.5 2.75 2.75 0 0 1 0-5.5Zm0 1a1.75 1.75 0 1 0 0 3.5 1.75 1.75 0 0 0 0-3.5Z\"/>","mic_f":"<path d=\"M5.5 10a.5.5 0 0 0-1 0 5.5 5.5 0 0 0 5 5.48v2.02a.5.5 0 0 0 1 0v-2.02c2.8-.26 5-2.61 5-5.48a.5.5 0 0 0-1 0 4.5 4.5 0 1 1-9 0Zm7.5 0a3 3 0 0 1-6 0V5a3 3 0 0 1 6 0v5Z\"/>","mic":"<path d=\"M10 13a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm0-1a2 2 0 0 1-2-2V5a2 2 0 1 1 4 0v5a2 2 0 0 1-2 2ZM5 9.5c.28 0 .5.22.5.5a4.5 4.5 0 1 0 9 0 .5.5 0 0 1 1 0 5.5 5.5 0 0 1-5 5.48v2.02a.5.5 0 0 1-1 0v-2.02a5.5 5.5 0 0 1-5-5.48c0-.28.22-.5.5-.5Z\"/>","more_horizontal_f":"<path d=\"M6.75 10a1.75 1.75 0 1 1-3.5 0 1.75 1.75 0 0 1 3.5 0Zm5 0a1.75 1.75 0 1 1-3.5 0 1.75 1.75 0 0 1 3.5 0ZM15 11.75a1.75 1.75 0 1 0 0-3.5 1.75 1.75 0 0 0 0 3.5Z\"/>","more_horizontal":"<path d=\"M6.25 10a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Zm5 0a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0ZM15 11.25a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5Z\"/>","more_vertical_f":"<path d=\"M10 6.5A1.75 1.75 0 1 1 10 3a1.75 1.75 0 0 1 0 3.5ZM10 17a1.75 1.75 0 1 1 0-3.5 1.75 1.75 0 0 1 0 3.5Zm-1.75-7a1.75 1.75 0 1 0 3.5 0 1.75 1.75 0 0 0-3.5 0Z\"/>","more_vertical":"<path d=\"M10 6a1.25 1.25 0 1 1 0-2.5A1.25 1.25 0 0 1 10 6Zm0 5.25a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5Zm-1.25 4a1.25 1.25 0 1 0 2.5 0 1.25 1.25 0 0 0-2.5 0Z\"/>","notebook_f":"<path d=\"M5 2a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H5Zm0 3.5c0-.28.22-.5.5-.5h7c.28 0 .5.22.5.5v1a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5v-1ZM16 6h.5c.28 0 .5.22.5.5V8a.5.5 0 0 1-.5.5H16V6Zm0 3.5h.5c.28 0 .5.22.5.5v1.5a.5.5 0 0 1-.5.5H16V9.5Zm0 3.5h.5c.28 0 .5.22.5.5V15a.5.5 0 0 1-.5.5H16V13Z\"/>","notebook":"<path d=\"M5.5 5a.5.5 0 0 0-.5.5v2c0 .28.22.5.5.5h7a.5.5 0 0 0 .5-.5v-2a.5.5 0 0 0-.5-.5h-7ZM6 7V6h6v1H6ZM3 4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4Zm2-1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H5Zm11 3h.5c.28 0 .5.22.5.5V8a.5.5 0 0 1-.5.5H16V6Zm.5 3.5H16V12h.5a.5.5 0 0 0 .5-.5V10a.5.5 0 0 0-.5-.5ZM16 13h.5c.28 0 .5.22.5.5V15a.5.5 0 0 1-.5.5H16V13Z\"/>","people_add_f":"<path d=\"M6.75 9a3.25 3.25 0 1 0 0-6.5 3.25 3.25 0 0 0 0 6.5ZM17 6.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Zm-8 8c0-1.7.78-3.23 2-4.24a2 2 0 0 0-1-.26H3.5a2 2 0 0 0-2 2s0 4 5.25 4c.95 0 1.73-.13 2.37-.35A5.52 5.52 0 0 1 9 14.5Zm10 0a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Zm-4-2a.5.5 0 0 0-1 0V14h-1.5a.5.5 0 0 0 0 1H14v1.5a.5.5 0 0 0 1 0V15h1.5a.5.5 0 0 0 0-1H15v-1.5Z\"/>","people_add":"<path d=\"M4.5 5.75a2.25 2.25 0 1 1 4.5 0 2.25 2.25 0 0 1-4.5 0ZM6.75 2.5a3.25 3.25 0 1 0 0 6.5 3.25 3.25 0 0 0 0-6.5ZM1.5 12c0-1.1.9-2 2-2H10a2 2 0 0 1 1 .26c-.28.23-.54.49-.77.77A1 1 0 0 0 10 11H3.5a1 1 0 0 0-1 1v.16l.06.33c.07.27.2.64.45 1C3.49 14.2 4.5 15 6.75 15c.95 0 1.69-.15 2.25-.37.01.35.05.7.12 1.02-.64.22-1.42.35-2.37.35-2.51 0-3.87-.92-4.57-1.93a3.95 3.95 0 0 1-.68-1.99V12ZM13 6.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0ZM14.5 4a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5ZM19 14.5a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Zm-4-2a.5.5 0 0 0-1 0V14h-1.5a.5.5 0 0 0 0 1H14v1.5a.5.5 0 0 0 1 0V15h1.5a.5.5 0 0 0 0-1H15v-1.5Z\"/>","people_community_f":"<path d=\"M10 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm-4.95 8c-.03.16-.05.33-.05.5V14c0 1.53.69 2.9 1.77 3.81l-.17.05a4 4 0 0 1-4.9-2.82l-.65-2.42a1.5 1.5 0 0 1 1.06-1.84L5.05 10Zm8.18 7.81A4.99 4.99 0 0 0 15 14v-3.5c0-.17-.02-.34-.05-.5l2.94.78a1.5 1.5 0 0 1 1.06 1.84l-.64 2.42a4 4 0 0 1-5.07 2.77ZM16.5 4a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Zm-13 0a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Zm4 5C6.67 9 6 9.67 6 10.5V14a4 4 0 0 0 8 0v-3.5c0-.83-.67-1.5-1.5-1.5h-5Z\"/>","people_community":"<path d=\"M10 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM7 5a3 3 0 1 1 6 0 3 3 0 0 1-6 0Zm-1.95 5c-.03.16-.05.33-.05.5v.54l-2.63.71a.5.5 0 0 0-.35.61l.64 2.42a3 3 0 0 0 3.32 2.2c.23.3.5.58.79.83l-.17.05a4 4 0 0 1-4.9-2.82l-.65-2.42a1.5 1.5 0 0 1 1.06-1.84L5.05 10ZM15 11.04v-.54c0-.17-.02-.34-.05-.5l2.94.78a1.5 1.5 0 0 1 1.06 1.84l-.64 2.42a4 4 0 0 1-5.07 2.77c.29-.25.55-.53.78-.84a3 3 0 0 0 3.32-2.2l.65-2.4a.5.5 0 0 0-.36-.62l-2.63-.7Zm0-4.54a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0ZM16.5 4a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Zm-13 1a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3ZM1 6.5a2.5 2.5 0 1 1 5 0 2.5 2.5 0 0 1-5 0ZM7.5 9C6.67 9 6 9.67 6 10.5V14a4 4 0 0 0 8 0v-3.5c0-.83-.67-1.5-1.5-1.5h-5ZM7 10.5c0-.28.22-.5.5-.5h5c.28 0 .5.22.5.5V14a3 3 0 1 1-6 0v-3.5Z\"/>","people_team_f":"<path d=\"M12.5 4.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Zm5 .5a2 2 0 1 1-4 0 2 2 0 0 1 4 0Zm-13 2a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM6 9.25C6 8.56 6.56 8 7.25 8h5.5c.69 0 1.25.56 1.25 1.25V14a4 4 0 0 1-8 0V9.25Zm-1 0c0-.46.14-.9.38-1.25H3.25C2.56 8 2 8.56 2 9.25V13a3 3 0 0 0 3.4 2.97C5.14 15.37 5 14.7 5 14V9.25ZM15 14c0 .7-.14 1.37-.4 1.97A3 3 0 0 0 18 13V9.25C18 8.56 17.44 8 16.75 8h-2.13c.24.36.38.79.38 1.25V14Z\"/>","people_team":"<path d=\"M10 3a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3ZM7.5 4.5a2.5 2.5 0 1 1 5 0 2.5 2.5 0 0 1-5 0Zm8-.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm-10 0a1 1 0 1 1 2 0 1 1 0 0 1-2 0Zm1-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm.6 12H5a2 2 0 0 1-2-2V9.25c0-.14.11-.25.25-.25h1.76c.04-.37.17-.7.37-1H3.25C2.56 8 2 8.56 2 9.25V13a3 3 0 0 0 3.4 2.97 4.96 4.96 0 0 1-.3-.97Zm9.5.97A3 3 0 0 0 18 13V9.25C18 8.56 17.44 8 16.75 8h-2.13c.2.3.33.63.37 1h1.76c.14 0 .25.11.25.25V13a2 2 0 0 1-2.1 2c-.07.34-.17.66-.3.97ZM7.25 8C6.56 8 6 8.56 6 9.25V14a4 4 0 0 0 8 0V9.25C14 8.56 13.44 8 12.75 8h-5.5ZM7 9.25c0-.14.11-.25.25-.25h5.5c.14 0 .25.11.25.25V14a3 3 0 1 1-6 0V9.25Z\"/>","person_circle_f":"<path d=\"M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM8 7a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm-.5 3h5c.83 0 1.5.67 1.5 1.5 0 1.12-.46 2.01-1.21 2.61-.74.6-1.74.89-2.79.89a4.43 4.43 0 0 1-2.79-.89A3.25 3.25 0 0 1 6 11.5c0-.83.67-1.5 1.5-1.5Z\"/>","person_circle":"<path d=\"M8 7a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm-.5 3h5c.83 0 1.5.67 1.5 1.5 0 1.12-.46 2.01-1.21 2.61-.74.6-1.74.89-2.79.89a4.43 4.43 0 0 1-2.79-.89A3.25 3.25 0 0 1 6 11.5c0-.83.67-1.5 1.5-1.5ZM10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16Zm-7 8a7 7 0 1 1 14 0 7 7 0 0 1-14 0Z\"/>","poll_f":"<path d=\"M10 2a2 2 0 0 0-2 2v12a2 2 0 1 0 4 0V4a2 2 0 0 0-2-2Zm-6 8a2 2 0 0 0-2 2v4a2 2 0 1 0 4 0v-4a2 2 0 0 0-2-2Zm12-4a2 2 0 0 0-2 2v8a2 2 0 1 0 4 0V8a2 2 0 0 0-2-2Z\"/>","poll":"<path d=\"M8 4a2 2 0 1 1 4 0v12a2 2 0 1 1-4 0V4Zm2-1a1 1 0 0 0-1 1v12a1 1 0 1 0 2 0V4a1 1 0 0 0-1-1Zm-8 9a2 2 0 1 1 4 0v4a2 2 0 1 1-4 0v-4Zm2-1a1 1 0 0 0-1 1v4a1 1 0 1 0 2 0v-4a1 1 0 0 0-1-1Zm12-5a2 2 0 0 0-2 2v8a2 2 0 1 0 4 0V8a2 2 0 0 0-2-2Zm-1 2a1 1 0 1 1 2 0v8a1 1 0 1 1-2 0V8Z\"/>","search_f":"<path d=\"M13.54 14.6a6.5 6.5 0 1 1 1.06-1.06l3.43 3.43a.75.75 0 0 1-.98 1.13l-.08-.07-3.43-3.43Zm.96-5.1a5 5 0 1 0-10 0 5 5 0 0 0 10 0Z\"/>","search":"<path d=\"M13.73 14.44a6.5 6.5 0 1 1 .7-.7l3.42 3.4a.5.5 0 0 1-.63.77l-.07-.06-3.42-3.41Zm-.71-.71A5.54 5.54 0 0 0 15 9.5a5.5 5.5 0 1 0-1.98 4.23Z\"/>","send_f":"<path d=\"M2.72 2.05a.5.5 0 0 0-.7.58l1.5 5.62c.05.19.2.33.4.36l6.85 1.14c.28.05.28.45 0 .5l-6.85 1.14a.5.5 0 0 0-.4.36l-1.5 5.62a.5.5 0 0 0 .7.58l15-7.5a.5.5 0 0 0 0-.9l-15-7.5Z\"/>","send":"<path d=\"M2.18 2.11a.5.5 0 0 1 .54-.06l15 7.5a.5.5 0 0 1 0 .9l-15 7.5a.5.5 0 0 1-.7-.58L3.98 10 2.02 2.63a.5.5 0 0 1 .16-.52Zm2.7 8.39-1.61 6.06L16.38 10 3.27 3.44 4.88 9.5h6.62a.5.5 0 1 1 0 1H4.88Z\"/>","settings_f":"<path d=\"M1.91 7.38A8.5 8.5 0 0 1 3.7 4.3a.5.5 0 0 1 .54-.13l1.92.68a1 1 0 0 0 1.32-.76l.36-2a.5.5 0 0 1 .4-.4 8.53 8.53 0 0 1 3.55 0c.2.04.35.2.38.4l.37 2a1 1 0 0 0 1.32.76l1.92-.68a.5.5 0 0 1 .54.13 8.5 8.5 0 0 1 1.78 3.08c.06.2 0 .4-.15.54l-1.56 1.32a1 1 0 0 0 0 1.52l1.56 1.32a.5.5 0 0 1 .15.54 8.5 8.5 0 0 1-1.78 3.08.5.5 0 0 1-.54.13l-1.92-.68a1 1 0 0 0-1.32.76l-.37 2a.5.5 0 0 1-.38.4 8.53 8.53 0 0 1-3.56 0 .5.5 0 0 1-.39-.4l-.36-2a1 1 0 0 0-1.32-.76l-1.92.68a.5.5 0 0 1-.54-.13 8.5 8.5 0 0 1-1.78-3.08.5.5 0 0 1 .15-.54l1.56-1.32a1 1 0 0 0 0-1.52L2.06 7.92a.5.5 0 0 1-.15-.54ZM8 10a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z\"/>","settings":"<path d=\"M1.91 7.38A8.5 8.5 0 0 1 3.7 4.3a.5.5 0 0 1 .54-.13l1.92.68a1 1 0 0 0 1.32-.76l.36-2a.5.5 0 0 1 .4-.4 8.53 8.53 0 0 1 3.55 0c.2.04.35.2.38.4l.37 2a1 1 0 0 0 1.32.76l1.92-.68a.5.5 0 0 1 .54.13 8.5 8.5 0 0 1 1.78 3.08c.06.2 0 .4-.15.54l-1.56 1.32a1 1 0 0 0 0 1.52l1.56 1.32a.5.5 0 0 1 .15.54 8.5 8.5 0 0 1-1.78 3.08.5.5 0 0 1-.54.13l-1.92-.68a1 1 0 0 0-1.32.76l-.37 2a.5.5 0 0 1-.38.4 8.53 8.53 0 0 1-3.56 0 .5.5 0 0 1-.39-.4l-.36-2a1 1 0 0 0-1.32-.76l-1.92.68a.5.5 0 0 1-.54-.13 8.5 8.5 0 0 1-1.78-3.08.5.5 0 0 1 .15-.54l1.56-1.32a1 1 0 0 0 0-1.52L2.06 7.92a.5.5 0 0 1-.15-.54Zm1.06 0 1.3 1.1a2 2 0 0 1 0 3.04l-1.3 1.1c.3.79.72 1.51 1.25 2.16l1.6-.58a2 2 0 0 1 2.63 1.53l.3 1.67a7.56 7.56 0 0 0 2.5 0l.3-1.67a2 2 0 0 1 2.64-1.53l1.6.58a7.5 7.5 0 0 0 1.24-2.16l-1.3-1.1a2 2 0 0 1 0-3.04l1.3-1.1a7.5 7.5 0 0 0-1.25-2.16l-1.6.58a2 2 0 0 1-2.63-1.53l-.3-1.67a7.55 7.55 0 0 0-2.5 0l-.3 1.67A2 2 0 0 1 5.81 5.8l-1.6-.58a7.5 7.5 0 0 0-1.24 2.16ZM7.5 10a2.5 2.5 0 1 1 5 0 2.5 2.5 0 0 1-5 0Zm1 0a1.5 1.5 0 1 0 3 0 1.5 1.5 0 0 0-3 0Z\"/>","shield_checkmark_f":"<path d=\"M9.72 2.08a.5.5 0 0 1 .56 0c1.94 1.3 4.03 2.1 6.3 2.43A.5.5 0 0 1 17 5v4.6a5.5 5.5 0 0 0-6.78 8.35l-.04.02a.5.5 0 0 1-.36 0C5.31 16.23 3 13.39 3 9.5V5a.5.5 0 0 1 .43-.5 15.05 15.05 0 0 0 6.3-2.42ZM19 14.5a4.5 4.5 0 1 0-9 0 4.5 4.5 0 0 0 9 0Zm-2.15-1.85c.2.2.2.5 0 .7l-3 3a.5.5 0 0 1-.7 0l-1-1a.5.5 0 0 1 .7-.7l.65.64 2.65-2.64c.2-.2.5-.2.7 0Z\"/>","shield_checkmark":"<path d=\"M9.72 2.08a.5.5 0 0 1 .56 0c1.94 1.3 4.03 2.1 6.3 2.43A.5.5 0 0 1 17 5v4.6c-.32-.16-.65-.3-1-.4V5.44a15.97 15.97 0 0 1-5.6-2.08L10 3.1l-.4.25A15.97 15.97 0 0 1 4 5.43V9.5c0 3.24 1.8 5.64 5.48 7.25.2.43.44.84.74 1.2l-.04.02a.5.5 0 0 1-.36 0C5.31 16.23 3 13.39 3 9.5V5a.5.5 0 0 1 .43-.5 15.05 15.05 0 0 0 6.3-2.42ZM19 14.5a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Zm-2.15-1.85a.5.5 0 0 0-.7 0l-2.65 2.64-.65-.64a.5.5 0 0 0-.7.7l1 1c.2.2.5.2.7 0l3-3a.5.5 0 0 0 0-.7Z\"/>","slide_text_f":"<path d=\"M2 6.5A2.5 2.5 0 0 1 4.5 4h11A2.5 2.5 0 0 1 18 6.5v7a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 2 13.5v-7Zm3.5.5a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1h-4ZM5 10c0 .28.22.5.5.5h7a.5.5 0 0 0 0-1h-7a.5.5 0 0 0-.5.5Zm.5 2a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5Z\"/>","slide_text":"<path d=\"M5.5 7a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1h-4Zm0 2.5a.5.5 0 0 0 0 1h7a.5.5 0 0 0 0-1h-7Zm-.5 3c0-.28.22-.5.5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5ZM4.5 4A2.5 2.5 0 0 0 2 6.5v7A2.5 2.5 0 0 0 4.5 16h11a2.5 2.5 0 0 0 2.5-2.5v-7A2.5 2.5 0 0 0 15.5 4h-11ZM3 6.5C3 5.67 3.67 5 4.5 5h11c.83 0 1.5.67 1.5 1.5v7c0 .83-.67 1.5-1.5 1.5h-11A1.5 1.5 0 0 1 3 13.5v-7Z\"/>","sparkle_f":"<path d=\"M7.4 12.8a1.04 1.04 0 0 0 1.59-.51l.45-1.37a2.34 2.34 0 0 1 1.47-1.48l1.4-.45A1.04 1.04 0 0 0 12.25 7l-1.37-.45A2.34 2.34 0 0 1 9.4 5.08L8.95 3.7a1.03 1.03 0 0 0-.82-.68 1.04 1.04 0 0 0-1.15.7l-.46 1.4a2.34 2.34 0 0 1-1.44 1.45L3.7 7a1.04 1.04 0 0 0 .02 1.97l1.37.45a2.33 2.33 0 0 1 1.48 1.48l.46 1.4c.07.2.2.37.38.5Zm6.14 4.05a.8.8 0 0 0 1.22-.4l.25-.76a1.09 1.09 0 0 1 .68-.68l.77-.25a.8.8 0 0 0-.02-1.52l-.77-.25a1.08 1.08 0 0 1-.68-.68l-.25-.77a.8.8 0 0 0-1.52.01l-.24.76a1.1 1.1 0 0 1-.67.68l-.77.25a.8.8 0 0 0 0 1.52l.77.25a1.09 1.09 0 0 1 .68.68l.25.77c.06.16.16.3.3.4Z\"/>","sparkle":"<path d=\"M7.4 12.8a1.04 1.04 0 0 0 1.59-.51l.45-1.37a2.34 2.34 0 0 1 1.47-1.48l1.4-.45A1.04 1.04 0 0 0 12.25 7l-1.37-.45A2.34 2.34 0 0 1 9.4 5.08L8.95 3.7a1.03 1.03 0 0 0-.82-.68 1.04 1.04 0 0 0-1.15.7l-.46 1.4a2.34 2.34 0 0 1-1.44 1.45L3.7 7a1.04 1.04 0 0 0 .02 1.97l1.37.45a2.33 2.33 0 0 1 1.48 1.48l.46 1.4c.07.2.2.37.38.5Zm.08-7.4.53-1.38.44 1.37a3.33 3.33 0 0 0 2.12 2.12l1.4.53-1.38.45a3.34 3.34 0 0 0-2.11 2.11l-.53 1.38-.45-1.38a3.34 3.34 0 0 0-2.1-2.12L4 7.96 5.4 7.5a3.36 3.36 0 0 0 2.08-2.12Zm6.06 11.45a.8.8 0 0 0 1.22-.4l.25-.76a1.09 1.09 0 0 1 .68-.68l.77-.25a.8.8 0 0 0-.02-1.52l-.77-.25a1.08 1.08 0 0 1-.68-.68l-.25-.77a.8.8 0 0 0-1.52.01l-.24.76a1.1 1.1 0 0 1-.67.68l-.77.25a.8.8 0 0 0 0 1.52l.77.25a1.09 1.09 0 0 1 .68.68l.25.77c.06.16.16.3.3.4Zm-.92-2.8-.18-.05.19-.06a2.09 2.09 0 0 0 1.3-1.32l.06-.18.05.18a2.08 2.08 0 0 0 1.32 1.32l.2.06-.18.06a2.08 2.08 0 0 0-1.32 1.32l-.06.18-.06-.18a2.07 2.07 0 0 0-1.32-1.32Z\"/>","square_f":"<path d=\"M3 6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6Z\"/>","square":"<path d=\"M3 6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6Zm3-2a2 2 0 0 0-2 2v8c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H6Z\"/>","sticker_f":"<path d=\"M6 3a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h5v-3.08a5.87 5.87 0 0 1-3.47-.47 4.2 4.2 0 0 1-.86-.57l-.01-.02h-.01a.5.5 0 0 1 .7-.72 1 1 0 0 0 .14.12c.1.07.26.18.48.3A4.5 4.5 0 0 0 10 13c.43 0 .81-.05 1.15-.14a2.75 2.75 0 0 1 2.6-1.86H17V6a3 3 0 0 0-3-3H6Zm1.5 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm6-1a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-.7 8.41a2 2 0 0 1-.8.5v-3.16c0-.97.78-1.75 1.75-1.75h3.15a2 2 0 0 1-.49.8L12.8 16.4Z\"/>","sticker":"<path d=\"M7.5 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm6-1a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM3 6v8a3 3 0 0 0 3 3h5.38a1.97 1.97 0 0 0 1.41-.59l3.62-3.62a2 2 0 0 0 .59-1.41V6a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3Zm13 0v5h-2.25c-1.2 0-2.24.78-2.6 1.86-.34.09-.72.14-1.15.14a4.5 4.5 0 0 1-2.51-.74 1.97 1.97 0 0 1-.14-.11.5.5 0 0 0-.7.7v.01l.02.02a2 2 0 0 0 .22.18 5.5 5.5 0 0 0 4.11.86V16H6a2 2 0 0 1-2-2V6c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2Zm-3.91 9.7a1 1 0 0 1-.09.08v-2.03c0-.97.78-1.75 1.75-1.75h2.03l-.07.09-3.62 3.62Z\"/>","subtract_f":"<path d=\"M3 10c0-.41.34-.75.75-.75h12.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 10Z\"/>","subtract":"<path d=\"M3 10c0-.28.22-.5.5-.5h13a.5.5 0 0 1 0 1h-13A.5.5 0 0 1 3 10Z\"/>","task_list_ltr_f":"<path d=\"M5.85 4.35a.5.5 0 1 0-.7-.7L3.5 5.29l-.65-.64a.5.5 0 1 0-.7.7l1 1c.2.2.5.2.7 0l2-2Zm2.9.15a.75.75 0 0 0 0 1.5h8.5a.75.75 0 0 0 0-1.5h-8.5Zm0 5a.75.75 0 0 0 0 1.5h8.5a.75.75 0 0 0 0-1.5h-8.5ZM8 15.25c0-.41.34-.75.75-.75h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1-.75-.75Zm-2.15-5.4a.5.5 0 1 0-.7-.7L3.5 10.79l-.65-.64a.5.5 0 0 0-.7.7l1 1c.2.2.5.2.7 0l2-2Zm0 4.3c.2.2.2.5 0 .7l-2 2a.5.5 0 0 1-.7 0l-1-1a.5.5 0 0 1 .7-.7l.65.64 1.65-1.64c.2-.2.5-.2.7 0Z\"/>","task_list_ltr":"<path d=\"M5.85 4.35a.5.5 0 1 0-.7-.7L3.5 5.29l-.65-.64a.5.5 0 1 0-.7.7l1 1c.2.2.5.2.7 0l2-2ZM8.5 5a.5.5 0 0 0 0 1h9a.5.5 0 0 0 0-1h-9Zm0 5a.5.5 0 0 0 0 1h9a.5.5 0 0 0 0-1h-9ZM8 15.5c0-.28.22-.5.5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5ZM5.85 9.85a.5.5 0 1 0-.7-.7L3.5 10.79l-.65-.64a.5.5 0 0 0-.7.7l1 1c.2.2.5.2.7 0l2-2Zm0 4.3c.2.2.2.5 0 .7l-2 2a.5.5 0 0 1-.7 0l-1-1a.5.5 0 0 1 .7-.7l.65.64 1.65-1.64c.2-.2.5-.2.7 0Z\"/>","text_description_f":"<path d=\"M2.75 4.5a.75.75 0 0 0 0 1.5h14.5a.75.75 0 0 0 0-1.5H2.75Zm0 3a.75.75 0 0 0 0 1.5h14.5a.75.75 0 0 0 0-1.5H2.75ZM2 11.25c0-.41.34-.75.75-.75h14.5a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1-.75-.75Zm.75 2.25a.75.75 0 0 0 0 1.5h9.5a.75.75 0 0 0 0-1.5h-9.5Z\"/>","text_description":"<path d=\"M2.5 5a.5.5 0 0 0 0 1h15a.5.5 0 0 0 0-1h-15Zm0 3a.5.5 0 0 0 0 1h15a.5.5 0 0 0 0-1h-15ZM2 11.5c0-.28.22-.5.5-.5h15a.5.5 0 0 1 0 1h-15a.5.5 0 0 1-.5-.5Zm.5 2.5a.5.5 0 0 0 0 1h10a.5.5 0 0 0 0-1h-10Z\"/>","video_f":"<path d=\"M2 7a3 3 0 0 1 3-3h5a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V7Zm14.04 7.78L14 13.37V6.63l2.04-1.4c.83-.58 1.96.01 1.96 1.02v7.5c0 1-1.13 1.6-1.96 1.03Z\"/>","video":"<path d=\"M5 4a3 3 0 0 0-3 3v6a3 3 0 0 0 3 3h5a3 3 0 0 0 3-3v-.32l3.04 2.1c.83.57 1.96-.03 1.96-1.03v-7.5c0-1-1.13-1.6-1.96-1.03L13 7.32V7a3 3 0 0 0-3-3H5Zm8 4.54 3.6-2.5c.17-.1.4.01.4.21v7.5c0 .2-.23.32-.4.2L13 11.46V8.54ZM3 7c0-1.1.9-2 2-2h5a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z\"/>","whiteboard_f":"<path d=\"m17.33 3.46.11.1.1.11c.64.76.61 1.9-.1 2.6l-3.6 3.63c-.22.22-.5.38-.8.47l-1.96.6a.84.84 0 0 1-1.04-1.08l.62-1.94c.1-.29.25-.55.47-.76l3.6-3.63a1.9 1.9 0 0 1 2.6-.1ZM12.9 4H4.5A2.5 2.5 0 0 0 2 6.5v2.26c.52-.48 1.12-.98 1.72-1.4A6.55 6.55 0 0 1 5.7 6.32c.32-.09.66-.12.99-.05.34.08.63.28.84.59.47.67.13 1.4-.2 1.92-.16.27-.37.56-.57.83l-.02.04c-.21.29-.42.58-.61.88-.16.28-.2.62-.13.86.03.12.1.2.17.27.07.06.19.12.37.13.33.03.76-.08 1.3-.27a.5.5 0 1 1 .33.94 4.2 4.2 0 0 1-1.71.33 1.52 1.52 0 0 1-1.41-1.12 2.19 2.19 0 0 1 .21-1.65h.01v-.01c.22-.34.45-.66.66-.95l.01-.02c.21-.29.4-.54.55-.78.32-.53.3-.73.22-.84a.4.4 0 0 0-.25-.17 1.08 1.08 0 0 0-.5.03c-.47.12-1.04.44-1.66.88-.85.6-1.7 1.38-2.3 1.98v3.35A2.5 2.5 0 0 0 4.5 16h11a2.5 2.5 0 0 0 2.5-2.5V7.13l-3.45 3.47a2.9 2.9 0 0 1-1.22.73l-1.96.6A1.84 1.84 0 0 1 9.1 9.58l.62-1.94c.14-.44.38-.84.7-1.17L12.9 4Z\"/>","whiteboard":"<path d=\"m17.33 3.46.11.1.1.11c.64.76.61 1.9-.1 2.6l-3.6 3.63c-.22.22-.5.38-.8.47l-1.96.6a.84.84 0 0 1-1.04-1.08l.62-1.94c.1-.29.25-.55.47-.76l3.6-3.63a1.9 1.9 0 0 1 2.6-.1Zm-1.88.8L11.84 7.9a.9.9 0 0 0-.23.37l-.53 1.66 1.67-.5a.9.9 0 0 0 .38-.23l3.6-3.62a.93.93 0 0 0 .06-1.24l-.06-.06-.06-.06a.9.9 0 0 0-1.22.06ZM12.89 4H5a3 3 0 0 0-3 3v6a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7.13l-1 1V13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9.23c.57-.49 1.34-1.11 2.07-1.54.41-.23.78-.38 1.07-.43.28-.05.42 0 .5.1.08.07.1.13.11.18.01.06 0 .15-.04.27-.1.28-.3.6-.6 1.02l-.1.13c-.25.35-.53.74-.73 1.14-.22.45-.4 1-.2 1.56.17.5.5.84.92 1 .4.17.85.15 1.24.08a6.5 6.5 0 0 0 2.02-.81.5.5 0 0 0-.52-.86c-.4.24-1.07.58-1.68.69-.3.05-.53.04-.7-.02-.13-.06-.26-.16-.34-.4-.06-.19-.03-.43.15-.8.16-.31.4-.64.66-1l.1-.13c.27-.39.58-.83.73-1.27.08-.23.12-.5.08-.76a1.32 1.32 0 0 0-.39-.73c-.4-.4-.91-.46-1.38-.38-.46.08-.95.3-1.4.56-.54.31-1.1.72-1.57 1.1V7c0-1.1.9-2 2-2h6.9l1-1Z\"/>"};
+const SEEK_LOGO=`<svg class="logo" viewBox="0 0 36 36.0006" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="32.3077" cy="13.231" r="3.69231" fill="#0F172A"/><circle cx="22.7693" cy="32.3082" r="3.69231" fill="#0F172A"/><circle cx="3.69231" cy="22.7696" r="3.69231" fill="#0F172A"/><circle cx="13.2307" cy="3.69244" r="3.69231" fill="#0F172A"/><circle cx="22.7693" cy="3.69266" r="3.69231" fill="#0F172A"/><circle cx="32.3077" cy="22.7699" r="3.69231" fill="#0F172A"/><circle cx="13.2307" cy="32.308" r="3.69231" fill="#0F172A"/><circle cx="3.69233" cy="13.2313" r="3.69231" fill="#0F172A"/><circle cx="32.3077" cy="3.69266" r="3.69231" fill="#0F172A"/><circle cx="18.1538" cy="18.1541" r="3.69231" fill="#ED250F"/><circle cx="32.3077" cy="32.3082" r="3.69231" fill="#0F172A"/><circle cx="3.69231" cy="32.308" r="3.69231" fill="#0F172A"/><circle cx="3.69233" cy="3.69244" r="3.69231" fill="#0F172A"/><path d="M23.7901 1.30519C24.402 1.11734 24.7996 1.19949 25.0313 1.43117C25.7909 2.19096 26.2666 3.32717 26.7383 4.53957C26.9675 5.12868 27.1978 5.73761 27.4561 6.28078C27.7143 6.82352 28.0185 7.3412 28.4161 7.73879C28.8137 8.13623 29.3311 8.44078 29.8721 8.69679C30.4143 8.95329 31.0183 9.17856 31.5997 9.39894C32.8019 9.8547 33.8904 10.2903 34.5694 10.9693C34.7329 11.1328 34.8155 11.5093 34.5684 12.1958C34.3359 12.8416 33.8656 13.5861 33.2803 14.2446C32.6931 14.9053 32.0281 15.4367 31.4346 15.6958C30.8375 15.9566 30.4495 15.8972 30.1993 15.647C29.3593 14.807 28.9067 13.725 28.4493 12.5698C28.0072 11.4535 27.5493 10.2276 26.6612 9.33937C26.2016 8.87976 25.6098 8.53449 24.9991 8.24562C24.3908 7.95793 23.7161 7.70485 23.0967 7.45558C22.4636 7.20078 21.8759 6.94552 21.3799 6.64015C20.8856 6.33579 20.5118 5.99888 20.2794 5.59621C20.1165 5.31415 20.1283 4.86007 20.4346 4.24074C20.7315 3.64075 21.2544 2.99896 21.877 2.45363C22.5011 1.90704 23.1887 1.4899 23.7901 1.30519Z" fill="#0F172A" stroke="#0F172A"/><path d="M34.6954 23.7907C34.8832 24.4026 34.8011 24.8002 34.5694 25.0319C33.8096 25.7915 32.6734 26.2672 31.461 26.7389C30.8719 26.9681 30.2629 27.1983 29.7198 27.4567C29.177 27.7148 28.6594 28.019 28.2618 28.4166C27.8643 28.8142 27.5598 29.3317 27.3038 29.8727C27.0473 30.4148 26.822 31.0189 26.6016 31.6002C26.1459 32.8025 25.7103 33.891 25.0313 34.57C24.8677 34.7335 24.4913 34.816 23.8047 34.569C23.1589 34.3365 22.4144 33.8662 21.7559 33.2809C21.0952 32.6936 20.5639 32.0286 20.3047 31.4352C20.044 30.838 20.1033 30.4501 20.3536 30.1998C21.1935 29.3599 22.2756 28.9072 23.4307 28.4498C24.5471 28.0078 25.773 27.5498 26.6612 26.6617C27.1208 26.2021 27.4661 25.6104 27.7549 24.9996C28.0426 24.3914 28.2957 23.7167 28.545 23.0973C28.7998 22.4641 29.055 21.8765 29.3604 21.3805C29.6648 20.8862 30.0017 20.5124 30.4043 20.2799C30.6864 20.1171 31.1405 20.1289 31.7598 20.4352C32.3598 20.732 33.0016 21.255 33.5469 21.8776C34.0935 22.5016 34.5107 23.1893 34.6954 23.7907Z" fill="#0F172A" stroke="#0F172A"/><path d="M12.2101 34.6955C11.5982 34.8833 11.2006 34.8012 10.9689 34.5695C10.2093 33.8097 9.73358 32.6735 9.26188 31.4611C9.03267 30.872 8.80245 30.2631 8.5441 29.7199C8.28595 29.1772 7.98173 28.6595 7.58414 28.2619C7.18655 27.8644 6.66911 27.5599 6.12809 27.3039C5.58595 27.0474 4.98191 26.8221 4.40055 26.6017C3.19828 26.146 2.10977 25.7104 1.43082 25.0314C1.26727 24.8679 1.18473 24.4914 1.4318 23.8049C1.6643 23.159 2.13459 22.4145 2.71988 21.756C3.30715 21.0954 3.97216 20.564 4.56559 20.3049C5.16275 20.0441 5.55069 20.1034 5.80094 20.3537C6.64087 21.1936 7.09355 22.2757 7.55094 23.4308C7.99298 24.5472 8.45095 25.7731 9.33902 26.6613C9.79864 27.1209 10.3904 27.4662 11.0011 27.7551C11.6094 28.0427 12.2841 28.2958 12.9035 28.5451C13.5366 28.7999 14.1243 29.0552 14.6203 29.3605C15.1146 29.6649 15.4884 30.0018 15.7209 30.4045C15.8837 30.6865 15.8719 31.1406 15.5656 31.7599C15.2688 32.3599 14.7458 33.0017 14.1232 33.547C13.4991 34.0936 12.8115 34.5108 12.2101 34.6955Z" fill="#0F172A" stroke="#0F172A"/><path d="M1.30485 12.2105C1.11701 11.5986 1.19915 11.2009 1.43083 10.9692C2.19062 10.2096 3.32683 9.73392 4.53923 9.26221C5.12834 9.03301 5.73727 8.80278 6.28044 8.54444C6.82318 8.28629 7.34086 7.98207 7.73845 7.58448C8.13589 7.18688 8.44044 6.66945 8.69646 6.12843C8.95295 5.58629 9.17822 4.98225 9.3986 4.40089C9.85436 3.19862 10.29 2.11011 10.9689 1.43116C11.1325 1.26761 11.5089 1.18507 12.1955 1.43214C12.8413 1.66464 13.5858 2.13492 14.2443 2.72022C14.905 3.30749 15.4363 3.9725 15.6955 4.56593C15.9562 5.16309 15.8969 5.55103 15.6467 5.80128C14.8067 6.64121 13.7246 7.09389 12.5695 7.55128C11.4531 7.99332 10.2272 8.45129 9.33903 9.33936C8.87942 9.79898 8.53415 10.3907 8.24528 11.0015C7.9576 11.6097 7.70451 12.2844 7.45524 12.9038C7.20044 13.537 6.94518 14.1246 6.63981 14.6206C6.33545 15.1149 5.99854 15.4887 5.59587 15.7212C5.31381 15.884 4.85973 15.8722 4.2404 15.5659C3.64041 15.2691 2.99862 14.7461 2.45329 14.1235C1.9067 13.4995 1.48956 12.8119 1.30485 12.2105Z" fill="#0F172A" stroke="#0F172A"/></svg>`;
+const TEAMS_MARK=`<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><rect x="12" y="5" width="10" height="13" rx="3" fill="#7B83EB"/><circle cx="17.5" cy="3.6" r="2.4" fill="#7B83EB"/><circle cx="11" cy="3.4" r="3" fill="#5B5FC7"/><rect x="5" y="6.5" width="12" height="14.5" rx="3.2" fill="#5B5FC7"/><rect x="1.5" y="8" width="11" height="11" rx="1.6" fill="#4B53BC"/><path d="M4.2 10.6h5.6v1.3H7.7V17H6.3v-5.1H4.2z" fill="#fff"/></svg>`;
+
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function ic(n,sz=20,cls=''){const p=ICONS[n]||'';return `<svg class="ic ${cls}" width="${sz}" height="${sz}" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">${p}</svg>`}
+const COLORS=[['#F6D1D5','#750B1C'],['#FDDFCB','#8A3707'],['#FEF7B2','#6D5700'],['#D9F0D3','#0B4A0B'],['#CDEDF4','#004E5C'],['#DCE0FA','#2D2F82'],['#E8D9F7','#4B1F78'],['#F7D9EE','#6D1253'],['#E1DFDD','#3B3A39']];
+function hash(s){let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))>>>0;return h}
+function initials(n){const p=n.replace(/[^A-Za-z ]/g,' ').trim().split(/\s+/);return ((p[0]||'')[0]+((p[1]||'')[0]||'')).toUpperCase()}
+function av(name,size=32,{pres=false,ini}={}){const [bg,fg]=COLORS[hash(name)%COLORS.length];return `<span class="av av-${size}" style="background:${bg};color:${fg}" title="${esc(name)}">${ini||initials(name)}${pres?`<span class="pres">${ic('checkmark_f',20)}</span>`:''}</span>`}
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parseYmd=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+const DOW=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MON=['January','February','March','April','May','June','July','August','September','October','November','December'];
+function fmtT(h){const hh=Math.floor(h),mm=Math.round((h-hh)*60);const ap=hh>=12?'PM':'AM';const h12=hh%12||12;return `${h12}:${pad(mm)} ${ap}`}
+const TODAY=new Date(2026,4,11), TODAY_K=ymd(TODAY), NOW=11.0; // Mon 11 May 2026, 11:00 AM
+const ME={name:'Sarah Lin',handle:'sarah'};
+const mondayOf=d=>addDays(d,-((d.getDay()+6)%7));
+
+/* ---------- data ---------- */
+const PEOPLE={sarah:'Sarah Lin',tom123:'Tom Ito',ellen:'Ellen Park',HR_tom:'Tom Bradley',HR_sarah:'Sarah Okafor',HR_ellen:'Ellen Ward',daichi:'Daichi Fukuda',marie:'Marie Cabibihan',hir:'Hir Israni',steven:'Steven Chen',jiwan:'Jiwan Park',priyanshi:'Priyanshi Jain',kian:'Kian Lambert',beth:'Beth Davis'};
+let ITEMS=[
+ {id:'m3',type:'moment',title:'Mango Chaat!',emoji:'🥭',by:'ellen',loc:'Floor 2 kitchen',date:'2026-05-11',start:11.25,end:11.75,rel:'In 15 mins',desc:'Made a big batch of mango chaat. Grab a bowl from the Floor 2 kitchen before it’s gone.',going:6},
+ {id:'m1',type:'moment',title:'Pasta Bake Up for Grabs',emoji:'🍝',by:'sarah',loc:'Rooftop',date:'2026-05-11',start:12,end:12.5,desc:'Way too much pasta bake left over from the client lunch. Plates and forks are by the rooftop door.',going:3},
+ {id:'m2',type:'moment',title:'Anyone want to grab a walk at lunch?',emoji:'👟',by:'tom123',loc:'Lobby',date:'2026-05-11',start:12.5,end:13,desc:'Quick 30-minute loop around the park. Meet by the front desk.',going:2},
+ {id:'e3',type:'event',title:'Monday Morning Kickoff',emoji:'☕',by:'HR_ellen',loc:'Cafeteria',date:'2026-05-11',start:9,end:10,desc:'Coffee, pastries and a quick look at the week ahead.',going:35},
+ {id:'e4',type:'event',title:'Team Photo Day',emoji:'📸',by:'HR_tom',loc:'Lobby',date:'2026-05-11',start:13,end:14,desc:'Updated headshots and a group shot for the company page. Look cute.',going:31},
+ {id:'e1',type:'event',title:'End of Quarter Celebration',emoji:'🎉',by:'HR_tom',loc:'Rooftop',date:'2026-05-11',start:15,end:17,desc:'Drinks, snacks and a few words from leadership to wrap up Q2.',going:48},
+ {id:'e2',type:'event',title:'New Joiner Welcome Drinks',emoji:'🍾',by:'HR_sarah',loc:'Floor 1 Lobby',date:'2026-05-11',start:19,end:21,desc:'Come say hi to the six people who joined us this month.',going:22},
+ {id:'x1',type:'moment',title:'Leftover birthday cake',emoji:'🎂',by:'ellen',loc:'Kitchen, Floor 3',date:'2026-05-12',start:14.5,end:15,desc:'Half a chocolate cake from Priya’s birthday. Help yourself!',going:9},
+ {id:'x2',type:'event',title:'Book Club: The Design of Everyday Things',emoji:'📚',by:'HR_sarah',loc:'Library',date:'2026-05-12',start:17,end:18,desc:'Chapters 1–3. New members welcome.',going:11},
+ {id:'x3',type:'moment',title:'Coffee run, who’s in?',emoji:'☕',by:'tom123',loc:'Lobby',date:'2026-05-13',start:10,end:10.5,desc:'Heading to the café on the corner. Drop your order in the thread.',going:4},
+ {id:'x4',type:'event',title:'Lunch & Learn: Design Systems',emoji:'🎓',by:'HR_tom',loc:'Room 321',date:'2026-05-13',start:12,end:13,desc:'How we scaled our component library across three products. Lunch provided.',going:27},
+ {id:'x5',type:'event',title:'Rooftop Yoga',emoji:'🧘',by:'HR_ellen',loc:'Rooftop',date:'2026-05-14',start:8,end:9,desc:'All levels. Mats provided.',going:14},
+ {id:'x6',type:'moment',title:'Pizza in the kitchen',emoji:'🍕',by:'ellen',loc:'Kitchen, Floor 2',date:'2026-05-14',start:12.5,end:13.25,desc:'Four boxes left over from the sprint review.',going:12},
+ {id:'x7',type:'moment',title:'Board game lunch',emoji:'🎲',by:'tom123',loc:'Room 204',date:'2026-05-15',start:12,end:13,desc:'Bringing Codenames and Ticket to Ride.',going:6},
+ {id:'x8',type:'event',title:'Friday Drinks',emoji:'🍻',by:'HR_sarah',loc:'Bar area',date:'2026-05-15',start:16,end:18,desc:'End-of-week drinks. Non-alcoholic options available.',going:40},
+ {id:'x9',type:'event',title:'Charity 5K',emoji:'🏃',by:'HR_tom',loc:'Riverside Park',date:'2026-05-16',start:9,end:11,desc:'Running for the local food bank. Walkers welcome.',going:18},
+];
+// fill the rest of May for the month view
+[4,18,25].forEach(d=>ITEMS.push({id:'k'+d,type:'event',title:'Monday Morning Kickoff',emoji:'☕',by:'HR_ellen',loc:'Cafeteria',date:`2026-05-${pad(d)}`,start:9,end:10,desc:'Coffee, pastries and a quick look at the week ahead.',going:30}));
+[1,8,22,29].forEach(d=>ITEMS.push({id:'f'+d,type:'event',title:'Friday Drinks',emoji:'🍻',by:'HR_sarah',loc:'Bar area',date:`2026-05-${pad(d)}`,start:16,end:18,desc:'End-of-week drinks. Non-alcoholic options available.',going:36}));
+ITEMS.push(
+ {id:'y1',type:'moment',title:'Bagels in the kitchen',emoji:'🥯',by:'ellen',loc:'Kitchen, Floor 2',date:'2026-05-06',start:9,end:9.5,desc:'A dozen everything bagels and cream cheese.',going:8},
+ {id:'y2',type:'event',title:'Hackathon demos',emoji:'🚀',by:'HR_tom',loc:'Auditorium',date:'2026-05-20',start:14,end:16,desc:'Twelve teams, five minutes each.',going:64},
+ {id:'y3',type:'moment',title:'Ice cream truck outside',emoji:'🍦',by:'tom123',loc:'Front entrance',date:'2026-05-21',start:15,end:15.5,desc:'It’s here! First 50 cones are on the house.',going:23},
+ {id:'y4',type:'event',title:'Town hall',emoji:'📣',by:'HR_sarah',loc:'Auditorium',date:'2026-05-27',start:10,end:11,desc:'Quarterly company update and Q&A.',going:120},
+ {id:'y5',type:'moment',title:'Plant swap',emoji:'🪴',by:'ellen',loc:'Floor 3 lounge',date:'2026-05-07',start:13,end:13.5,desc:'Bring a cutting, take a cutting.',going:7}
+);
+
+const STORE={
+ recent:[['Tasks','task_list_ltr','#0F6CBD'],['Whiteboard','whiteboard','#2D7D9A'],['Polls','poll','#5B5FC7'],['Forms','form','#038387'],['Notes','notebook','#7719AA'],['Insights','data_bar_vertical','#C3501D']],
+ sections:[
+  ['Popular in your org',[
+   {id:'seek',name:'SEEK',desc:'Create and join events',seek:true},
+   {name:'Polls',desc:'Get your team’s opinion by creating a poll in a meeting',icon:'poll',color:'#5B5FC7'},
+   {name:'Approvals',desc:'Create, manage and share approvals',icon:'checkmark_circle',color:'#0F6CBD'},
+   {name:'Q&A',desc:'Engage your audience with live questions and answers',icon:'chat_bubbles_question',color:'#8764B8'}]],
+  ['Productivity',[
+   {name:'Forms',desc:'Easily create surveys, quizzes and polls.',icon:'form',color:'#038387'},
+   {name:'Lists',desc:'Track information and organize work',icon:'clipboard_task_list_ltr',color:'#C239B3'},
+   {name:'Whiteboard',desc:'Ideate and collaborate on a shared canvas',icon:'whiteboard',color:'#2D7D9A'},
+   {name:'Insights',desc:'Make your meetings more interactive with live data',icon:'data_bar_vertical',color:'#C3501D'}]],
+  ['Education',[
+   {name:'Reading Coach',desc:'Personalized reading practice for every learner',icon:'book',color:'#0078D4'},
+   {name:'Wiki',desc:'Build a shared knowledge base with your team',icon:'slide_text',color:'#605E5C'}]]
+ ]
+};
+
+const CHATS={
+ pinned:[['Ray Tanaka','Louisa will send the initial list of attendees','10:40 AM'],['Beth Davis','Thanks, that would be nice.','10:43 AM'],['Kayo Miwa','I reviewed with the client on Tuesday, she…','4/17'],['Will, Kayo, Eric, +2','Kayo: It would be great to sync with…','9:12 AM'],['August Bergman','I haven’t checked available times yet','9:20 AM',true]],
+ recent:[['TerraSync','','11:20 AM',false,'TS'],['Charlotte and Babak','Babak: I asked the client to send her feedback…','Yesterday'],['Emiliano Ceballos','😂😂','Yesterday',true],['Marie Beaudouin','Sounds good?','Yesterday'],['Oscar Krogh','You: Thanks! Have a nice weekend','Fri'],['Daichi Fukuda','No, I think there are other alternatives we c…','Fri'],['Kian Lambert','Have you ran this by Beth? Make sure she is…','Thu'],['Team Design Template','Reta: Let’s set up a brainstorm session for…','Thu'],['Reviewers','Darren: Thats fine with me','Wed']]
+};
+const DRAFT='@SEEK I am bringing Hot Dogs at 7:00 PM. Come to the cafeteria if you wanna join.';
+const initialChat=()=>[
+ {who:'hir',t:'10:52 AM',text:'Morning team! Big push on the TerraSync launch this week 💪'},
+ {who:'jiwan',t:'10:55 AM',text:'Final QA pass is done on my end ✅'},
+ {who:'steven',t:'10:58 AM',text:'Nice! Demo deck is ready for Thursday too'},
+ {who:'priyanshi',t:'11:02 AM',text:'Let’s do something fun after if we hit the deadline 😄'},
+ {who:'marie',t:'11:04 AM',text:'+1, we deserve it'},
+ {who:'me',t:'11:20 AM',text:'Hey guys...'}
+];
+
+/* ---------- state ---------- */
+const S={
+ rail:'calendar', mtab:'details', installed:false, dialog:'store', storeQ:'', adding:false,
+ stab:'today', seg:'events', view:'list', cal:'week', filter:'all', weekStart:mondayOf(TODAY), month:new Date(2026,4,1),
+ added:new Set(), pop:null, dd:null, flash:null,
+ form:{name:'',date:TODAY_K,time:'',desc:''}, errs:{},
+ chat:initialChat(), draft:DRAFT, typing:null, chatBadge:2, scripted:false, cardAdded:new Set()
+};
+
+/* ---------- shell ---------- */
+function titlebar(){return `<div class="tb">
+ <div class="tb-logo">${TEAMS_MARK}</div>
+ <div class="tb-center"><button class="icbtn" aria-label="Back">${ic('chevron_left',16)}</button><button class="icbtn" aria-label="Forward">${ic('chevron_right',16)}</button>
+  <div class="tb-search">${ic('search',16)}<span>Search</span></div></div>
+ <div class="tb-right"><button class="icbtn" aria-label="Settings and more">${ic('more_horizontal',20)}</button><span style="width:8px"></span>${av(ME.name,32,{pres:true})}<span style="width:12px"></span>
+  <span class="tb-win">${ic('subtract',16)}</span><span class="tb-win">${ic('square',14)}</span><span class="tb-win close">${ic('dismiss',16)}</span></div></div>`}
+function rail(){
+ const it=(k,label,icn,badge)=>{const sel=S.rail===k;return `<button class="rail-i ${sel?'sel':''}" data-act="rail" data-arg="${k}" aria-label="${label}">${ic(sel?icn+'_f':icn,24)}${badge?`<span class="badge">${badge}</span>`:''}<span>${label}</span></button>`};
+ return `<nav class="rail">${it('activity','Activity','alert')}${it('chat','Chat','chat',S.chatBadge||'')}${it('teams','Teams','people_team')}${it('calendar','Calendar','calendar_ltr')}${it('calls','Calls','call')}${it('files','Files','document')}
+ ${S.installed?`<button class="rail-i rail-app ${S.rail==='seekapp'?'sel':''}" data-act="openseek" aria-label="SEEK">${SEEK_LOGO}<span>SEEK</span></button>`:''}
+ <button class="rail-i" aria-label="More apps">${ic('more_horizontal',24)}</button><div class="rail-sep"></div><button class="rail-i" data-act="store" aria-label="Apps">${ic('add_square',24)}<span>Apps</span></button></nav>`}
+
+function render(){
+ const keep={};document.querySelectorAll('[data-keep]').forEach(el=>keep[el.dataset.keep]=el.scrollTop);
+ const w=$('#win');
+ w.innerHTML=titlebar()+rail()+`<section class="main" id="main">${mainView()}</section>`+dialog()+`<div id="toasts"></div>`;
+ document.querySelectorAll('[data-keep]').forEach(el=>{if(keep[el.dataset.keep]!=null)el.scrollTop=keep[el.dataset.keep]});
+ restoreToasts();
+ afterRender();
+ steps();
+}
+function mainView(){
+ if(S.rail==='chat')return chatView();
+ if(S.rail==='calendar')return meetingView();
+ const names={activity:'Activity',teams:'Teams',calls:'Calls',files:'Files'};
+ return `<div class="empty"><div>${ic({activity:'alert',teams:'people_team',calls:'call',files:'document'}[S.rail]||'apps',48)}<h3>${names[S.rail]||''}</h3><div>This area isn’t part of the SEEK prototype.<br><button class="a link" style="font-size:14px" data-act="rail" data-arg="calendar">Back to Marketing review</button></div></div></div>`;
+}
+
+/* ---------- meeting ---------- */
+function meetingView(){
+ const t=(k,label,extra='')=>`<button class="tab ${S.mtab===k?'sel':''}" data-act="mtab" data-arg="${k}">${extra}${label}</button>`;
+ return `<header class="mh"><div class="mh-icon">${ic('calendar_ltr',20)}</div><div class="mh-title">Marketing review</div>
+  <div class="tabs" role="tablist">${t('chat','Chat')}${t('details','Details')}${S.installed?t('seek','SEEK',`<span class="tab-logo">${SEEK_LOGO}</span>`):''}
+   <button class="tab ${!S.installed&&!S.dialog?'pulse':''}" data-act="store" aria-label="Add a tab" style="padding:0 8px">${ic('add',20)}</button></div>
+  <div class="mh-actions"><button class="btn primary">Join</button><button class="btn">Close</button></div></header>
+  ${S.mtab==='seek'?seekView():S.mtab==='details'?detailsView():meetingChat()}`;
+}
+function detailsView(){return `<div class="det-toolbar"><button class="btn subtle brandtext">${ic('checkmark',16)} Accepted ${ic('chevron_down',12)}</button><div class="vsep"></div><button class="btn subtle">${ic('link',16)} Copy link</button><button class="btn subtle">${ic('more_horizontal',16)}</button></div>
+ <div class="scroll" data-keep="det"><div class="det">
+  <div class="det-row">${ic('info',20)}<div><b>Monday, May 11, 2026 &nbsp;11:30 AM – 12:00 PM</b><div class="cap" style="margin-top:2px">Organizer: Beth Davis · 8 attendees</div></div></div>
+  <div class="det-row">${ic('text_description',20)}<div><p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p><p>Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+  <h2>Microsoft Teams meeting</h2><div class="tight"><p><b>Join on your computer, mobile app or room device</b></p><p><a class="a" href="#" onclick="return false">Click here to join the meeting</a></p><p>Meeting ID: 284 391 552 107 &nbsp; Passcode: Kp7xQ2</p><p style="margin-top:14px"><b>Or call in (audio only)</b></p><p><a class="a" href="#" onclick="return false">+1 555-0100,,333333333#</a> &nbsp;United States</p><p>Phone conference ID: 333 333 333#</p><p><a class="a" href="#" onclick="return false">Find a local number</a> | <a class="a" href="#" onclick="return false">Reset PIN</a></p><p style="margin-top:14px"><a class="a" href="#" onclick="return false">Learn more</a> | <a class="a" href="#" onclick="return false">Meeting options</a></p></div></div></div>
+ </div></div>`}
+function meetingChat(){return `<div class="cv" style="flex:1"><div class="msgs">${S.installed?`<div class="daysep">Today</div><div class="m"><div class="botav">${SEEK_LOGO}</div><div><div class="hd"><b>SEEK</b><span class="apptag">App</span><span>11:05 AM</span></div><div class="bub">Sarah Lin added <b>SEEK</b> to this meeting. Open the SEEK tab to see what’s happening today.</div></div></div>`:`<div class="empty"><div>${ic('chat',48)}<h3>No messages yet</h3><div>Messages sent before, during and after the meeting show up here.</div></div></div>`}</div>
+ <div class="comp"><div class="comp-box"><input placeholder="Type a message" aria-label="Type a message"><div class="comp-tools"><span class="icbtn">${ic('emoji',20)}</span><span class="icbtn">${ic('attach',20)}</span></div><span class="send">${ic('send',20)}</span></div></div></div>`}
+
+/* ---------- SEEK tab ---------- */
+function seekView(){
+ const t=(k,l)=>`<button class="tab ${S.stab===k||(k==='all'&&S.stab==='all')?'sel':''}" data-act="stab" data-arg="${k}">${l}</button>`;
+ let body= S.stab==='create'?createView(): S.stab==='all'?calendarView():todayView();
+ return `<div class="scroll" data-keep="seek-${S.stab}" id="seekScroll"><div class="seek"><div class="seek-in">
+  <div class="seek-head"><div><h1>Welcome back, Sarah!</h1><div class="sub">Monday, May 11 · ${todayCounts()}</div></div><div class="seek-logo">${SEEK_LOGO}</div></div>
+  ${S.stab==='create'?'':`<div class="seek-bar"><div class="tabs" role="tablist">${t('today','Today')}${t('all','All')}</div><button class="btn primary" data-act="create">${ic('calendar_add',20)} Create an event</button></div>`}
+  ${body}</div></div></div>`;
+}
+function todayCounts(){const t=ITEMS.filter(i=>i.date===TODAY_K);const m=t.filter(i=>i.type==='moment').length,e=t.length-m;return `${m} moment${m===1?'':'s'} and ${e} event${e===1?'':'s'} today`}
+const isPast=it=>it.date<TODAY_K||(it.date===TODAY_K&&it.end<=NOW);
+function timeLabel(it){if(it.date===TODAY_K&&it.rel)return it.rel;if(it.date===TODAY_K&&it.start<=NOW&&it.end>NOW)return 'Happening now';return fmtT(it.start)}
+function dayLabel(k){const d=parseYmd(k);if(k===TODAY_K)return 'Today';if(k===ymd(addDays(TODAY,1)))return 'Tomorrow';return `${DOW[d.getDay()].slice(0,3)}, ${MON[d.getMonth()].slice(0,3)} ${d.getDate()}`}
+function goingCount(it){return it.going+(S.added.has(it.id)?1:0)}
+function pile(it){const ppl=['Kian Lambert','Beth Davis','Daichi Fukuda','Marie Beaudouin','Oscar Krogh','Ray Tanaka'];const off=hash(it.id)%3;let a=ppl.slice(off,off+3);if(S.added.has(it.id))a=[ME.name,...a.slice(0,2)];return `<span class="pile">${a.map(n=>av(n,20)).join('')}</span>`}
+function addBtn(it,sm=true){
+ if(isPast(it))return `<span class="ended">${ic('checkmark_circle',16)} Ended</span>`;
+ const on=S.added.has(it.id);
+ return `<button class="btn ${sm?'sm':''} ${on?'on':'brandtext'}" data-act="add" data-arg="${it.id}" aria-pressed="${on}">${ic(on?'checkmark':'add_circle',16)} ${on?'Added':'Add to calendar'}</button>`;
+}
+function card(it){
+ return `<article class="card ev ${it.type} ${isPast(it)?'past':''} ${S.flash===it.id?'flash':''}">
+  <div class="ev-by">${av(PEOPLE[it.by]||it.by,20)}<span>Posted by <b>@${esc(it.by)}</b></span><span class="badge-t ${it.type}">${it.type==='moment'?'Moment':'Event'}</span>${it.date===TODAY_K&&it.start<=NOW+.5&&!isPast(it)?`<span class="badge-t live">${it.start<=NOW?'Live':'Soon'}</span>`:''}</div>
+  <div class="ev-emoji" aria-hidden="true">${it.emoji}</div>
+  <h3 class="ev-title">${esc(it.title)}</h3>
+  <div class="ev-meta"><span>${ic('location',16)}${esc(it.loc)}</span><span>${ic('clock',16)}${timeLabel(it)}</span>${it.date!==TODAY_K?`<span>${ic('calendar_ltr',16)}${dayLabel(it.date)}</span>`:''}</div>
+  <div class="ev-foot">${pile(it)}<span class="cap">${goingCount(it)} going${S.added.has(it.id)?' · including you':''}</span></div>
+  <div class="ev-act">${addBtn(it)}</div></article>`;
+}
+function todayView(){
+ const list=ITEMS.filter(i=>i.date===TODAY_K).sort((a,b)=>(isPast(a)-isPast(b))||a.start-b.start);
+ const mo=list.filter(i=>i.type==='moment'),ev=list.filter(i=>i.type==='event');
+ const cur=S.seg==='moments'?mo:ev;
+ return `<div class="row between"><h2 class="sect">What’s happening today?</h2></div>
+ <div class="row between" style="margin-top:12px"><div class="ctabs" role="tablist">
+   <button class="ctab ${S.seg==='moments'?'sel':''}" data-act="seg" data-arg="moments">Moments <span class="count">${mo.length}</span></button>
+   <button class="ctab ${S.seg==='events'?'sel':''}" data-act="seg" data-arg="events">Events <span class="count">${ev.length}</span></button></div>
+  ${dropdown('view',[['list','List','apps'],['calendar','Calendar','calendar_ltr']],S.view)}</div>
+ ${S.view==='calendar'?`<div style="margin-top:16px">${weekView(true)}</div>`:`<div class="list">${cur.map(card).join('')||`<div class="empty" style="padding:40px">Nothing posted yet.</div>`}</div>`}`;
+}
+function dropdown(id,opts,val,prefix=''){
+ const cur=opts.find(o=>o[0]===val);
+ return `<div class="dd-wrap"><button class="dd" data-act="dd" data-arg="${id}" aria-haspopup="listbox" aria-expanded="${S.dd===id}"><span class="v">${prefix?`<small>${prefix} </small>`:''}${cur[1]}</span>${ic('chevron_down',16)}</button>
+ ${S.dd===id?`<div class="lb" role="listbox">${opts.map(o=>`<button class="opt" role="option" data-act="pick" data-arg="${id}:${o[0]}">${o[0]===val?ic('checkmark',16,'chk'):'<span style="width:16px"></span>'}${o[1]}</button>`).join('')}</div>`:''}</div>`;
+}
+
+/* calendar */
+const passFilter=it=>S.filter==='all'||(S.filter==='moments'?it.type==='moment':it.type==='event');
+function calendarView(){
+ let range='';
+ if(S.cal==='week'){const e=addDays(S.weekStart,6);range=`${MON[S.weekStart.getMonth()]} ${S.weekStart.getDate()} – ${S.weekStart.getMonth()!==e.getMonth()?MON[e.getMonth()]+' ':''}${e.getDate()}, ${e.getFullYear()}`}
+ else if(S.cal==='month')range=`${MON[S.month.getMonth()]} ${S.month.getFullYear()}`;
+ else range='Upcoming';
+ return `<div class="cal-tools">
+  <div class="ctabs" role="tablist">${[['agenda','All'],['week','Week'],['month','Month']].map(([k,l])=>`<button class="ctab ${S.cal===k?'sel':''}" data-act="cal" data-arg="${k}">${l}</button>`).join('')}</div>
+  ${S.cal!=='agenda'?`<span class="vsep"></span><button class="btn" style="min-width:0" data-act="caltoday">${ic('calendar_ltr',16)} Today</button><button class="icbtn" data-act="calnav" data-arg="-1" aria-label="Previous">${ic('chevron_left',16)}</button><button class="icbtn" data-act="calnav" data-arg="1" aria-label="Next">${ic('chevron_right',16)}</button>`:''}
+  <span class="cal-range">${range}</span><span style="flex:1"></span>
+  <span class="legend"><span><i style="background:var(--moment-bar)"></i>Moments</span><span><i style="background:var(--event-bar)"></i>Events</span></span>
+  ${dropdown('filter',[['all','All'],['moments','Moments'],['events','Events']],S.filter,'Show:')}</div>
+  ${S.cal==='week'?weekView():S.cal==='month'?monthView():agendaView()}`;
+}
+const H0=8,H1=22,PX=48;
+function weekView(todayOnly){
+ const days=[...Array(7)].map((_,i)=>addDays(S.weekStart,i));
+ const head=`<div class="wk-head"><div></div>${days.map(d=>`<div class="wk-day ${ymd(d)===TODAY_K?'today':''}"><div class="n">${d.getDate()}</div><div class="d">${DOW[d.getDay()]}</div></div>`).join('')}</div>`;
+ const times=`<div class="wk-times">${[...Array(H1-H0)].map((_,i)=>`<div>${i?fmtT(H0+i).replace(':00',''):''}</div>`).join('')}</div>`;
+ const cols=days.map(d=>{const k=ymd(d);const its=ITEMS.filter(i=>i.date===k&&passFilter(i));
+  return `<div class="wk-col ${k===TODAY_K?'today':''}" style="height:${(H1-H0)*PX}px">${its.map(it=>{const top=(it.start-H0)*PX,h=Math.max((it.end-it.start)*PX-2,22);
+   return `<button class="blk ${it.type} ${isPast(it)?'past':''} ${S.pop&&S.pop.id===it.id?'act':''}" style="top:${top+1}px;height:${h}px" data-act="pop" data-arg="${it.id}"><b>${esc(it.title)} ${it.emoji}</b>${h>34?`<span>${fmtT(it.start)}${h>50?'':' · '+esc(it.loc)}</span>`:''}${h>50?`<span>${ic('location',12).replace('class="ic ','style="display:inline;vertical-align:-2px" class="ic ')} ${esc(it.loc)}</span>`:''}</button>`}).join('')}
+   ${k===TODAY_K?`<div class="now" style="top:${(NOW-H0)*PX}px"></div>`:''}</div>`}).join('');
+ return `<div class="cal" id="calbox">${head}<div class="wk-body scroll" data-keep="wk" id="wkbody"><div class="wk-grid">${times}${cols}</div></div>${popover()}</div>`;
+}
+function monthView(){
+ const first=new Date(S.month.getFullYear(),S.month.getMonth(),1);const start=mondayOf(first);
+ const last=new Date(S.month.getFullYear(),S.month.getMonth()+1,0);const weeks=Math.ceil((((first.getDay()+6)%7)+last.getDate())/7);
+ let cells='';
+ for(let i=0;i<weeks*7;i++){const d=addDays(start,i),k=ymd(d);const its=ITEMS.filter(x=>x.date===k&&passFilter(x)).sort((a,b)=>a.start-b.start);
+  cells+=`<div class="mo-cell ${d.getMonth()!==S.month.getMonth()?'out':''} ${k===TODAY_K?'today':''}"><span class="num">${d.getDate()}</span>${its.slice(0,2).map(it=>`<button class="chip ${it.type}" data-act="pop" data-arg="${it.id}" title="${esc(it.title)}">${it.emoji} ${esc(it.title)}</button>`).join('')}${its.length>2?`<button class="more" data-act="moreday" data-arg="${k}">+${its.length-2} more</button>`:''}</div>`}
+ return `<div class="cal" id="calbox"><div class="mo-head">${['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map(d=>`<div>${d}</div>`).join('')}</div><div class="mo-grid">${cells}</div>${popover()}</div>`;
+}
+function agendaView(){
+ const its=ITEMS.filter(i=>i.date>=TODAY_K&&passFilter(i)).sort((a,b)=>a.date.localeCompare(b.date)||a.start-b.start);
+ let out='',last='';
+ its.forEach(it=>{if(it.date!==last){last=it.date;const d=parseYmd(it.date);out+=`<div class="ag-day">${DOW[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}${it.date===TODAY_K?'<span class="badge-t event">Today</span>':''}</div>`}
+  out+=`<div class="ag-row ${it.type} ${isPast(it)?'past':''}" style="${isPast(it)?'opacity:.6':''}"><div class="t">${fmtT(it.start)}<br>${fmtT(it.end)}</div><div class="bar"></div><div><div class="ttl">${esc(it.title)} ${it.emoji}</div><div class="cap">${esc(it.loc)} · Posted by @${esc(it.by)}</div></div>${addBtn(it)}</div>`});
+ return `<div class="cal" style="padding:12px 16px">${out}</div>`;
+}
+function popover(){
+ if(!S.pop)return '';const it=ITEMS.find(i=>i.id===S.pop.id);if(!it)return '';
+ const d=parseYmd(it.date);
+ return `<div class="pop" role="dialog" aria-label="${esc(it.title)}" style="left:${S.pop.x}px;top:${S.pop.y}px"><span class="beak" style="${S.pop.side==='r'?'left:-6px':'right:-6px'};top:${S.pop.by}px"></span>
+  <div class="row between"><div class="ev-by">${av(PEOPLE[it.by]||it.by,20)}<span>Posted by <b>@${esc(it.by)}</b></span></div><button class="icbtn" style="width:24px;height:24px" data-act="closepop" aria-label="Close">${ic('dismiss',16)}</button></div>
+  <h4>${esc(it.title)} ${it.emoji}</h4>
+  <div class="meta"><span class="badge-t ${it.type}">${it.type==='moment'?'Moment':'Event'}</span><span>${esc(it.loc)}</span><span>·</span><span>${DOW[d.getDay()]} ${fmtT(it.start)}</span></div>
+  <div class="lbl">Description</div><p>${esc(it.desc)}</p>
+  <div class="row" style="margin-top:12px">${pile(it)}<span class="cap">${goingCount(it)} going</span></div>
+  <div class="acts">${isPast(it)?`<span class="ended">${ic('checkmark_circle',16)} Ended</span>`:`<button class="btn sm ${S.added.has(it.id)?'on':'primary'}" data-act="add" data-arg="${it.id}">${ic(S.added.has(it.id)?'checkmark':'calendar_add',16)} ${S.added.has(it.id)?'Added':'Add to calendar'}</button>`}</div></div>`;
+}
+
+/* create */
+function createView(){
+ const f=S.form,e=S.errs;
+ const err=k=>e[k]?`<div class="errmsg">${ic('info_f',12)}${e[k]}</div>`:'';
+ return `<button class="btn subtle back" data-act="stab" data-arg="today">${ic('arrow_left',16)} Back</button>
+ <div class="create"><div><h2 class="sect">Create an event</h2><div class="cap" style="font-size:14px;line-height:20px;margin:4px 0 20px">Post a moment or an event for everyone at Contoso. It only takes four fields.</div>
+  <form class="form" id="cform" novalidate>
+   <div><label class="lbl" for="f-name">Name<span class="req">*</span></label><div class="inp ${e.name?'err':''}"><input id="f-name" data-f="name" value="${esc(f.name)}" placeholder="e.g. Pizza in the kitchen" maxlength="60" autocomplete="off"></div>${err('name')}</div>
+   <div class="f-row">
+    <div><label class="lbl" for="f-date">Date</label><div class="inp">${ic('calendar_ltr',20)}<input id="f-date" type="date" data-f="date" value="${esc(f.date)}"></div></div>
+    <div><label class="lbl" for="f-time">Time<span class="req">*</span></label><div class="inp ${e.time?'err':''}">${ic('clock',20)}<input id="f-time" type="time" data-f="time" value="${esc(f.time)}"></div>${err('time')}</div></div>
+   <div><label class="lbl" for="f-desc">Description<span class="req">*</span></label><div class="inp ta ${e.desc?'err':''}"><textarea id="f-desc" data-f="desc" placeholder="Where is it, what should people bring?" maxlength="200">${esc(f.desc)}</textarea></div>${err('desc')||`<div class="hint">Add a location like “in the kitchen” and SEEK will pick it up.</div>`}</div>
+   <div class="f-acts"><button type="button" class="btn" data-act="stab" data-arg="today">Cancel</button><button type="submit" class="btn primary">Post event</button></div>
+  </form></div>
+  <aside><div class="prev-l">Preview</div><div id="preview">${previewCard()}</div><div class="prev-note">${ic('people_community',16)}<span>Visible to everyone in your organization. Anyone can tap <b>Add to calendar</b>.</span></div></aside></div>`;
+}
+function draftItem(){
+ const f=S.form;const [hh,mm]=(f.time||'12:00').split(':').map(Number);const start=hh+mm/60;
+ const loc=findLoc(f.desc)||'Location TBD';
+ return {id:'draft',type:f.date===TODAY_K?'moment':'event',title:f.name||'Your event name',emoji:pickEmoji(f.name+' '+f.desc),by:ME.handle,loc,date:f.date||TODAY_K,start,end:start+1,desc:f.desc,going:0};
+}
+function previewCard(){const it=draftItem();const h=card(it);return h.replace(/<div class="ev-act">[\s\S]*?<\/div><\/article>/,'<div class="ev-act"><span class="btn sm brandtext" style="pointer-events:none">'+ic('add_circle',16)+' Add to calendar</span></div></article>').replace(/class="card ev/,'class="card ev" style="pointer-events:none" data-x="')}
+
+/* ---------- dialog ---------- */
+function appTile(a,sz=32){return a.seek?`<span class="tile seektile ${sz===32?'s32':''}">${SEEK_LOGO.replace('class="logo"',`width="${sz*.62}" height="${sz*.62}"`)}</span>`:`<span class="tile ${sz===32?'s32':''}" style="background:${a.color}">${ic(a.icon,sz===32?18:26)}</span>`}
+function dialog(){
+ if(!S.dialog)return '';
+ if(S.dialog==='store'){
+  const q=S.storeQ.trim().toLowerCase();
+  const secs=STORE.sections.map(([t,apps])=>[t,apps.filter(a=>!q||(a.name+' '+a.desc).toLowerCase().includes(q))]).filter(s=>s[1].length);
+  return `<div class="scrim" data-act="scrim"><div class="dlg" role="dialog" aria-modal="true" aria-label="Add an app" data-stop>
+   <div class="dlg-body scroll" data-keep="store">
+    <div class="search-f">${ic('search',16)}<input id="storeq" placeholder="Find an app" value="${esc(S.storeQ)}" aria-label="Find an app" autocomplete="off"></div>
+    ${q?'':`<div class="recent">${STORE.recent.map(([n,i,c])=>`<button class="rapp">${appTile({icon:i,color:c},48)}<span>${n}</span></button>`).join('')}<button class="rapp"><span class="tile ghost">${ic('grid',24)}</span><span>See all</span></button></div>
+    <div class="divtxt">Add a new app</div>`}
+    ${secs.map(([t,apps])=>`<div class="sec-h"><h3>${t}</h3><button class="link">See all</button></div><div class="apps">${apps.map(a=>`<div class="app ${a.seek?'hl':''}" ${a.seek?'data-act="appdetail"':''} role="${a.seek?'button':'group'}" tabindex="${a.seek?0:-1}">${appTile(a)}<div style="min-width:0"><div class="nm">${a.name}${a.seek?'<span class="newb">New</span>':''}</div><div class="ds">${a.desc}</div></div><button class="btn sm ${a.seek&&!S.installed?'pulse':''}" ${a.seek?'data-act="appdetail"':''}>${a.seek&&S.installed?'Open':'Add'}</button></div>`).join('')}</div>`).join('')||`<div class="nores">No apps found for “${esc(S.storeQ)}”</div>`}
+   </div>
+   <div class="dlg-foot"><button class="btn">${ic('settings',16)} Manage your apps</button><span class="sp"></span><button class="btn" data-act="closedlg">Close</button><button class="btn primary">Get more apps</button></div></div></div>`;
+ }
+ return `<div class="scrim" data-act="scrim"><div class="dlg" style="width:800px" role="dialog" aria-modal="true" aria-label="SEEK" data-stop>
+  <div class="dlg-body">
+   <div class="ad-head"><div class="ad-logo">${SEEK_LOGO.replace('class="logo"','width="52" height="52"')}</div><div style="flex:1"><h2>SEEK</h2><div class="ad-pub">SEEK Labs · ${ic('shield_checkmark',16)} Publisher verified</div><div class="ad-tags"><span class="tag">Tabs</span><span class="tag">Bots</span><span class="tag">Meetings</span><span class="tag">Messaging</span></div></div><button class="icbtn" style="align-self:flex-start" data-act="closedlg" aria-label="Close">${ic('dismiss',20)}</button></div>
+   <div class="ad-grid"><div>
+    <p>See what’s happening around the office, from the quarterly party to leftover cake in the kitchen. Post in four fields, or mention <span class="mention">@SEEK</span> in any chat and it picks up the details for you.</p>
+    <div class="feat"><span class="fi">${ic('calendar_ltr',18)}</span><div><b>Today at a glance</b><span>A meeting or channel tab with every moment and event happening today.</span></div></div>
+    <div class="feat"><span class="fi">${ic('calendar_add',18)}</span><div><b>One-click RSVP</b><span>Add anything to your Outlook calendar without leaving Teams.</span></div></div>
+    <div class="feat"><span class="fi">${ic('sparkle',18)}</span><div><b>Smart detection in chat</b><span>The SEEK bot spots plans in a conversation and turns them into events for the team.</span></div></div>
+   </div><div class="perm"><h4>${ic('shield_checkmark',16)} Permissions</h4>This app will have permission to:<ul style="margin-top:6px"><li>Receive messages and data that I provide to it</li><li>Send me messages and notifications</li><li>Access my profile information such as my name and email address</li><li>Read and write to my calendar</li></ul><a class="a" href="#" onclick="return false">Learn more</a></div></div>
+  </div>
+  <div class="dlg-foot"><span class="legal">By using SEEK, you agree to the <a class="a" href="#" onclick="return false">privacy policy</a>, <a class="a" href="#" onclick="return false">terms of use</a> and <a class="a" href="#" onclick="return false">permissions</a>.</span>
+   <button class="btn" data-act="backstore">Back</button>
+   <button class="btn primary ${S.adding?'':'pulse'}" data-act="install" style="min-width:200px" ${S.adding?'aria-busy="true"':''}>${S.adding?'<span class="spinner"></span> Adding SEEK…':'Add to Marketing review'}</button></div></div></div>`;
+}
+
+/* ---------- chat ---------- */
+function chatView(){
+ const item=(c,sel)=>{const [n,pv,t,unread,ini]=c;const preview=n==='TerraSync'?lastPreview():pv;
+  return `<button class="ci ${sel?'sel':''} ${unread?'unread':''}">${n==='TerraSync'?av(n,32,{ini:'TS'}):av(n,32,{pres:!n.includes(',')&&!n.includes(' and ')&&n!=='Reviewers'&&n!=='Team Design Template'})}<span class="nm">${esc(n)}</span><span class="tm">${n==='TerraSync'?lastTime():t}</span><span class="pv">${esc(preview)}</span></button>`};
+ return `<div class="chatv"><aside class="cl"><div class="cl-h"><h2>Chat ${ic('chevron_down',16)}</h2><button class="icbtn" aria-label="Filter">${ic('filter',20)}</button><button class="icbtn" aria-label="New chat">${ic('compose',20)}</button></div>
+  <div class="scroll"><div class="cl-sec">${ic('chevron_down',12)} Pinned</div>${CHATS.pinned.map(c=>item(c)).join('')}<div class="cl-sec">${ic('chevron_down',12)} Recent</div>${CHATS.recent.map(c=>item(c,c[0]==='TerraSync')).join('')}</div></aside>
+  <section class="cv"><header class="cv-h">${av('TerraSync',32,{ini:'TS'})}<span class="nm">TerraSync</span><div class="tabs"><button class="tab sel">Chat</button><button class="tab">Files</button>${S.installed?`<button class="tab" data-act="openseek"><span class="tab-logo">${SEEK_LOGO}</span>SEEK</button>`:''}<button class="tab" style="padding:0 8px">${ic('add_square',18)}</button></div>
+   <div class="acts"><div class="callbtn"><button aria-label="Video call">${ic('video',20)}</button><button aria-label="Audio call">${ic('call',20)}</button></div><button class="icbtn" aria-label="People">${ic('people_add',20)}</button><span class="cap">6</span></div></header>
+   <div class="msgs scroll" id="msgs">${messagesHTML()}</div>
+   <div class="typing" id="typing">${typingHTML()}</div>
+   <div class="comp"><form class="comp-box" id="compf"><input id="comp" value="${esc(S.draft)}" placeholder="Type a message" aria-label="Type a message" autocomplete="off">
+    <div class="comp-tools"><span class="icbtn">${ic('text_format',20)}</span><span class="icbtn">${ic('emoji',20)}</span><span class="icbtn">${ic('gif',20)}</span><span class="icbtn">${ic('sticker',20)}</span><span class="icbtn">${ic('attach',20)}</span><span class="icbtn">${ic('add_circle',20)}</span></div>
+    <button type="submit" class="send ${S.draft.trim()?'on':''} ${S.rail==='chat'&&!S.scripted&&S.draft===DRAFT?'pulse':''}" aria-label="Send">${ic(S.draft.trim()?'send_f':'send',20)}</button></form></div></section></div>`;
+}
+function lastPreview(){const m=S.chat[S.chat.length-1];return (m.who==='me'?'You: ':m.who==='bot'?'SEEK: ':(PEOPLE[m.who]||'').split(' ')[0]+': ')+(m.text||'Sent a card').replace(/@SEEK/g,'SEEK')}
+function lastTime(){return S.chat[S.chat.length-1].t}
+function fmtMsg(t){return esc(t).replace(/@SEEK\b/g,'<span class="mention">SEEK</span>')}
+function typingHTML(){return S.typing?`<span class="dots"><i></i><i></i><i></i></span> ${S.typing} is typing…`:''}
+function messagesHTML(){
+ let out='<div class="daysep">Today</div>';let prev=null;
+ S.chat.forEach((m,i)=>{
+  const cont=prev&&prev.who===m.who&&m.who!=='bot';
+  if(m.who==='me'){out+=`<div class="m me ${cont?'cont':''}"><div><div class="hd">${cont?'':`<span>${m.t}</span>`}</div><div class="bub">${fmtMsg(m.text)}</div></div></div>`}
+  else if(m.who==='bot'){out+=`<div class="m"><div class="botav">${SEEK_LOGO}</div><div><div class="hd"><b>SEEK</b><span class="apptag">App</span><span>${m.t}</span></div><div class="bub">${m.card?botCard(m):fmtMsg(m.text)}</div></div></div>`}
+  else{const n=PEOPLE[m.who];out+=`<div class="m ${cont?'cont':''}">${av(n,32,{pres:true})}<div>${cont?'':`<div class="hd"><b>${n}</b><span>${m.t}</span></div>`}<div class="bub">${fmtMsg(m.text)}</div>${m.react?`<div class="reacts"><span class="react">${m.react}</span></div>`:''}</div></div>`}
+  prev=m});
+ return out;
+}
+function botCard(m){const it=ITEMS.find(x=>x.id===m.card);if(!it)return '';const on=S.added.has(it.id);
+ return `<div class="ac"><div class="t1">Thank you for creating an event with SEEK.</div>
+  <div class="ac-ev"><span class="em">${it.emoji}</span><div><b>${esc(it.title)} at ${fmtT(it.start)}</b><span>${ic('calendar_ltr',12)} ${dayLabel(it.date)} &nbsp;${ic('location',12)} ${esc(it.loc)}</span></div></div>
+  <div class="ac-acts"><button class="btn ${on?'on':'primary'}" data-act="add" data-arg="${it.id}">${ic(on?'checkmark':'calendar_add',16)} ${on?'Added to calendar':'Add to calendar'}</button><button class="btn" data-act="viewinseek" data-arg="${it.id}">View in SEEK</button></div>
+  <div class="foot">${ic('people_community',12)} Posted to SEEK for everyone at Contoso · ${goingCount(it)} going</div></div>`}
+function refreshChat(){const el=$('#msgs');if(!el)return;el.innerHTML=messagesHTML();el.scrollTop=el.scrollHeight;$('#typing').innerHTML=typingHTML();const pv=document.querySelector('.ci.sel .pv');if(pv){pv.textContent=lastPreview();document.querySelector('.ci.sel .tm').textContent=lastTime()}}
+
+/* ---------- parsing (bot) ---------- */
+const EMOJI=[[/hot ?dog/i,'🌭'],[/pizza/i,'🍕'],[/taco/i,'🌮'],[/burger/i,'🍔'],[/sushi/i,'🍣'],[/donut|doughnut/i,'🍩'],[/bagel/i,'🥯'],[/cake|birthday/i,'🎂'],[/cookie/i,'🍪'],[/ice ?cream/i,'🍦'],[/coffee|latte/i,'☕'],[/tea\b/i,'🍵'],[/beer|drinks|pub|bar\b/i,'🍻'],[/wine/i,'🍷'],[/pasta/i,'🍝'],[/mango/i,'🥭'],[/fruit/i,'🍓'],[/lunch|salad/i,'🥗'],[/breakfast|pancake/i,'🥞'],[/walk|hike/i,'👟'],[/run\b|5k|jog/i,'🏃'],[/yoga|stretch/i,'🧘'],[/game|board/i,'🎲'],[/quiz|trivia/i,'🧠'],[/photo/i,'📸'],[/music|karaoke/i,'🎤'],[/movie|film/i,'🍿'],[/party|celebrat/i,'🎉'],[/book/i,'📚'],[/talk|learn|workshop/i,'🎓']];
+function pickEmoji(s){for(const [r,e] of EMOJI)if(r.test(s||''))return e;return '📅'}
+function cap(s){s=s.trim();return s.charAt(0).toUpperCase()+s.slice(1).toLowerCase()}
+function findLoc(s){const m=(s||'').match(/\b(?:in|at|to|on) the ([a-z0-9][a-z0-9 ]{1,24}?)(?=[.,!?]| if| for| at| around| after| before| with| and|$)/i);return m?cap(m[1]):''}
+function parseTime(s){
+ let m=s.match(/\b(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)(?![a-z])/i);
+ if(m){let h=+m[1]%12;if(/p/i.test(m[3]))h+=12;return h+(+(m[2]||0))/60}
+ m=s.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);if(m)return +m[1]+ +m[2]/60;
+ if(/\bnoon\b/i.test(s))return 12;
+ m=s.match(/\bat (\d{1,2})\b(?!:)/i);if(m){let h=+m[1];if(h<8)h+=12;return h}
+ return null;
+}
+function parseTitle(s){
+ const t=s.replace(/@SEEK\b/gi,'').trim();
+ let m=t.match(/\b(?:bringing|brought|made|baking|baked|have|has|got)\s+(?:some\s+|a\s+few\s+|extra\s+)?(.+?)\s+(?:at|to|for|in|on|@|around)\b/i)
+   ||t.match(/\b(?:anyone (?:up for|want(?:s)? to|keen for|fancy)|who(?:'s| is) up for|let'?s(?: go)?(?: grab| get| have| do)?|join (?:me|us) for)\s+(?:a\s+|an\s+|some\s+)?(.+?)\s+(?:at|in|on|@|around|today|tonight|after)\b/i);
+ if(m)return cap(m[1].split(/[,.!?;]/)[0]).replace(/\b(\w)/,c=>c.toUpperCase());
+ return cap(t.replace(/\b(at|@)\s*\d.*$/i,'').split(/\s+/).slice(0,5).join(' '))||'Team hangout';
+}
+function nowT(off=0){const tot=11*60+21+off;return fmtT(tot/60)}
+
+/* ---------- actions ---------- */
+function toast(title,body,action,fn){
+ const host=$('#toasts');if(!host)return;const el=document.createElement('div');el.className='toast';el.setAttribute('role','status');
+ el.innerHTML=`<span class="ti">${ic('checkmark_circle_f',20)}</span><div><b>${esc(title)}</b><span>${esc(body)}</span></div><button class="icbtn x" style="width:24px;height:24px" aria-label="Dismiss">${ic('dismiss',12)}</button>${action?`<div class="ta"><button class="link" style="font-size:13px">${esc(action)}</button></div>`:''}`;
+ el.querySelector('.x').onclick=()=>kill();if(action)el.querySelector('.ta button').onclick=()=>{kill();fn()};
+ host.appendChild(el);TOASTS.push(el);const tm=setTimeout(kill,5200);
+ function kill(){clearTimeout(tm);el.classList.add('out');setTimeout(()=>{el.remove();TOASTS=TOASTS.filter(x=>x!==el)},200)}
+}
+let TOASTS=[];function restoreToasts(){const host=$('#toasts');TOASTS.forEach(t=>host.appendChild(t))}
+
+function toggleAdd(id){
+ const it=ITEMS.find(i=>i.id===id);if(!it)return;
+ if(S.added.has(id)){S.added.delete(id);render();return}
+ S.added.add(id);render();
+ toast('Added to your calendar',`${it.title} · ${dayLabel(it.date)}, ${fmtT(it.start)}`,'Undo',()=>{S.added.delete(id);render()});
+}
+function openPop(id,el){
+ const box=$('#calbox');if(!box)return;const sc=SCALE;
+ const b=box.getBoundingClientRect(),r=el.getBoundingClientRect();
+ const rx=(r.left-b.left)/sc,ry=(r.top-b.top)/sc,rw=r.width/sc,rh=r.height/sc,bw=b.width/sc;
+ let side='r',x=rx+rw+10;if(x+320>bw-8){side='l';x=rx-330}
+ let y=Math.max(8,ry+Math.min(rh,60)/2-60);const maxY=Math.max(8,b.height/sc-300);y=Math.min(y,maxY);
+ S.pop={id,x,y,side,by:Math.max(14,Math.min(ry+Math.min(rh,60)/2-y-6,260))};render();
+}
+function goStep(n){
+ S.pop=null;S.dd=null;
+ if(n===1){Object.assign(S,{rail:'calendar',mtab:'details',installed:false,dialog:'store',storeQ:'',adding:false,stab:'today'})}
+ if(n===2){Object.assign(S,{rail:'calendar',installed:true,dialog:null,mtab:'seek',stab:'today',seg:'events',view:'list'})}
+ if(n===3){Object.assign(S,{rail:'calendar',installed:true,dialog:null,mtab:'seek',stab:'create',errs:{}})}
+ if(n===4){Object.assign(S,{installed:true,dialog:null,rail:'chat',chatBadge:0});if(S.scripted){S.chat=initialChat();S.draft=DRAFT;S.scripted=false}}
+ render();
+}
+function curStep(){if(S.rail==='chat')return 4;if(!S.installed||S.dialog)return 1;if(S.mtab==='seek'&&S.stab==='create')return 3;return 2}
+const STEPS=[['Install','SEEK is added from the Teams app store, so there is no new software to approve.'],['Browse','Today’s events, each one click from the employee’s calendar.'],['Create','Anyone can post an event in four fields.'],['Detect','The SEEK bot spots an event in a chat and posts it for the team.']];
+function steps(){const c=curStep();$('#steps').innerHTML=`<div class="steps">${STEPS.map((s,i)=>`<button class="st ${c===i+1?'sel':''}" data-step="${i+1}"><i>${i+1}</i>${s[0]}</button>`).join('')}</div><div class="st-cap"><b>${c}. ${STEPS[c-1][0]}.</b> ${STEPS[c-1][1]}</div>`}
+
+function sendChat(text){
+ text=text.trim();if(!text)return;
+ S.chat.push({who:'me',t:nowT(),text});S.draft='';
+ const inp=$('#comp');if(inp)inp.value='';
+ document.querySelector('.send')?.classList.remove('on','pulse');
+ refreshChat();
+ const time=parseTime(text),mentioned=/@SEEK\b/i.test(text);
+ if(time==null&&!mentioned)return;
+ setTimeout(()=>{S.typing='SEEK';refreshChat()},350);
+ setTimeout(()=>{
+  S.typing=null;
+  if(time==null){S.chat.push({who:'bot',t:nowT(1),text:'I couldn’t find a time in that message. Try something like “Pizza in the kitchen at 1pm”.'});refreshChat();return}
+  const id='c'+Date.now();const title=parseTitle(text);
+  ITEMS.push({id,type:'moment',title,emoji:pickEmoji(text),by:ME.handle,loc:findLoc(text)||'TerraSync team',date:TODAY_K,start:time,end:time+1,desc:text.replace(/@SEEK\s*/gi,''),going:1});
+  S.chat.push({who:'bot',t:nowT(1),card:id});refreshChat();
+  if(!S.scripted){S.scripted=true;
+   setTimeout(()=>{S.typing=PEOPLE.marie;refreshChat()},900);
+   setTimeout(()=>{S.typing=null;S.chat.push({who:'marie',t:nowT(1),text:'Yayy. I am in!'});const it=ITEMS.find(i=>i.id===id);if(it)it.going++;refreshChat()},2400);
+   setTimeout(()=>{S.typing=PEOPLE.priyanshi;refreshChat()},3000);
+   setTimeout(()=>{S.typing=null;S.chat.push({who:'priyanshi',t:nowT(2),text:'Save me one 🙋‍♀️'});const it=ITEMS.find(i=>i.id===id);if(it)it.going++;refreshChat()},4300);
+   setTimeout(()=>{const m=S.chat.find(x=>x.who==='marie'&&x.text==='Yayy. I am in!');if(m){m.react='🌭 3';refreshChat()}},5000);
+  }
+ },1500);
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click',e=>{
+ const st=e.target.closest('[data-step]');if(st){goStep(+st.dataset.step);return}
+ const a=e.target.closest('[data-act]');
+ if(S.dd&&!(a&&(a.dataset.act==='dd'||a.dataset.act==='pick'))){S.dd=null;render()}
+ if(S.pop&&!e.target.closest('.pop')&&!(a&&a.dataset.act==='pop')){S.pop=null;if(!a){render();return}}
+ if(!a)return;
+ const arg=a.dataset.arg;
+ if(a.dataset.act==='scrim'&&e.target.closest('[data-stop]'))return;
+ switch(a.dataset.act){
+  case 'rail': if(arg==='chat')S.chatBadge=0; S.rail=arg; S.pop=null; render(); if(arg==='chat'){const el=$('#msgs');if(el)el.scrollTop=el.scrollHeight} break;
+  case 'mtab': S.mtab=arg; render(); break;
+  case 'store': S.rail='calendar'; S.dialog='store'; S.storeQ=''; render(); break;
+  case 'scrim': case 'closedlg': if(!S.adding){S.dialog=null;render()} break;
+  case 'appdetail': if(S.installed){S.dialog=null;S.mtab='seek';render()}else{S.dialog='detail';render()} break;
+  case 'backstore': S.dialog='store'; render(); break;
+  case 'install': if(S.adding)break; S.adding=true; render();
+   setTimeout(()=>{S.adding=false;S.installed=true;S.dialog=null;S.mtab='seek';S.stab='today';S.seg='events';render();toast('SEEK was added','It’s now a tab in Marketing review.')},1200); break;
+  case 'openseek': S.rail='calendar'; S.mtab='seek'; S.stab='today'; render(); break;
+  case 'stab': S.stab=arg; S.pop=null; S.errs={}; render(); break;
+  case 'seg': S.seg=arg; render(); break;
+  case 'create': S.stab='create'; S.errs={}; render(); setTimeout(()=>$('#f-name')?.focus(),30); break;
+  case 'dd': S.dd=S.dd===arg?null:arg; render(); break;
+  case 'pick': {const [id,v]=arg.split(':');S.dd=null;if(id==='view'){if(v==='calendar'){S.stab='all';S.cal='week';S.view='list'}else S.view=v}else if(id==='filter')S.filter=v;render();break}
+  case 'add': toggleAdd(arg); break;
+  case 'cal': S.cal=arg; S.pop=null; render(); break;
+  case 'caltoday': S.weekStart=mondayOf(TODAY); S.month=new Date(2026,4,1); S.pop=null; render(); break;
+  case 'calnav': if(S.cal==='week')S.weekStart=addDays(S.weekStart,7*+arg);else S.month=new Date(S.month.getFullYear(),S.month.getMonth()+ +arg,1);S.pop=null;render();break;
+  case 'pop': if(S.pop&&S.pop.id===arg){S.pop=null;render()}else openPop(arg,a); break;
+  case 'closepop': S.pop=null; render(); break;
+  case 'moreday': S.cal='week'; S.weekStart=mondayOf(parseYmd(arg)); render(); break;
+  case 'viewinseek': {const it=ITEMS.find(i=>i.id===arg);S.rail='calendar';S.mtab='seek';S.stab='today';S.seg=it&&it.type==='moment'?'moments':'events';S.view='list';S.flash=arg;render();setTimeout(()=>{S.flash=null},2300);break}
+ }
+});
+document.addEventListener('input',e=>{
+ if(e.target.id==='storeq'){S.storeQ=e.target.value;const pos=e.target.selectionStart;render();const i=$('#storeq');i.focus();i.setSelectionRange(pos,pos);return}
+ if(e.target.dataset.f){S.form[e.target.dataset.f]=e.target.value;if(S.errs[e.target.dataset.f]){delete S.errs[e.target.dataset.f];const w=e.target.closest('.inp');w.classList.remove('err');const em=w.parentNode.querySelector('.errmsg');if(em)em.remove()}const p=$('#preview');if(p)p.innerHTML=previewCard();return}
+ if(e.target.id==='comp'){S.draft=e.target.value;const s=document.querySelector('.send');s.classList.toggle('on',!!S.draft.trim());s.classList.remove('pulse');s.innerHTML=ic(S.draft.trim()?'send_f':'send',20)}
+});
+document.addEventListener('submit',e=>{
+ e.preventDefault();
+ if(e.target.id==='compf'){sendChat($('#comp').value);return}
+ if(e.target.id==='cform'){
+  const f=S.form,errs={};
+  if(!f.name.trim())errs.name='Give your event a name.';
+  if(!f.time)errs.time='Pick a time.';
+  if(!f.desc.trim())errs.desc='Add a short description.';
+  S.errs=errs;if(Object.keys(errs).length){render();const k=Object.keys(errs)[0];$('#f-'+k)?.focus();return}
+  const it=draftItem();it.id='p'+Date.now();it.going=1;it.title=f.name.trim();ITEMS.push(it);S.added.add(it.id);
+  S.form={name:'',date:TODAY_K,time:'',desc:''};
+  if(it.date===TODAY_K){S.stab='today';S.seg='moments';S.view='list'}else{S.stab='all';S.cal='agenda'}
+  S.flash=it.id;render();setTimeout(()=>{S.flash=null},2300);
+  toast('Your event is live',`${it.title} · ${dayLabel(it.date)}, ${fmtT(it.start)}`,'Share in TerraSync chat',()=>{S.rail='chat';S.chatBadge=0;S.draft=`@SEEK ${it.title} at ${fmtT(it.start)}${it.loc&&it.loc!=='Location TBD'?' in the '+it.loc.toLowerCase():''}. Who’s in?`;render()});
+ }
+});
+document.addEventListener('keydown',e=>{
+ if(e.key==='Escape'){if(S.dd){S.dd=null;render()}else if(S.pop){S.pop=null;render()}else if(S.dialog&&!S.adding){S.dialog=null;render()}}
+ if(e.key==='Enter'&&e.target.classList.contains('app')&&e.target.dataset.act)e.target.click();
+});
+function afterRender(){
+ const fl=document.querySelector('.ev.flash');if(fl&&!fl.dataset.seen){fl.dataset.seen=1;fl.scrollIntoView({block:'center',behavior:'smooth'})}
+ const m=$('#msgs');if(m)m.scrollTop=m.scrollHeight;
+ const wk=$('#wkbody');if(wk&&!wk.dataset.init&&wk.scrollTop===0){wk.scrollTop=0;wk.dataset.init=1}
+}
+
+/* ---------- scale to fit ---------- */
+let SCALE=1;
+function fit(){
+ const embed=document.body.classList.contains('embed');
+ const nav=embed?0:$('#steps').offsetHeight+16;
+ const W=innerWidth-(embed?0:32),H=innerHeight-(embed?0:32)-nav;
+ SCALE=Math.min(W/1280,H/800,embed?10:1.2);
+ $('#win').style.transform=`scale(${SCALE})`;
+ const sc=$('#scaler');sc.style.width=1280*SCALE+'px';sc.style.height=800*SCALE+'px';
+ if(embed)document.getElementById('stageWrap').style.padding='0';
+}
+const qs=new URLSearchParams(location.search);
+if(qs.get('embed')==='1')document.body.classList.add('embed');
+render();
+if(qs.get('step'))goStep(+qs.get('step'));
+fit();addEventListener('resize',fit);
+</script>
+</body>
+</html>

@@ -526,7 +526,7 @@ const initialChat=()=>[
 /* ---------- state ---------- */
 const S={
  rail:'calendar', mtab:'details', installed:false, dialog:'store', storeQ:'', adding:false,
- stab:'today', seg:'events', view:'list', cal:'week', filter:'all', weekStart:mondayOf(TODAY), month:new Date(2026,4,1),
+ stab:'today', seg:'events', view:'cards', cal:'week', filter:'all', weekStart:mondayOf(TODAY), month:new Date(2026,4,1),
  added:new Set(), pop:null, dd:null, flash:null,
  form:{name:'',date:TODAY_K,time:'',desc:''}, errs:{},
  chat:initialChat(), draft:DRAFT, typing:null, chatBadge:2, scripted:false, cardAdded:new Set()
@@ -585,10 +585,10 @@ function seekView(){
  let body= S.stab==='create'?createView(): S.stab==='all'?calendarView():todayView();
  return `<div class="scroll" data-keep="seek-${S.stab}" id="seekScroll"><div class="seek"><div class="seek-in">
   <div class="seek-head"><div><h1>Welcome back, Sarah!</h1><div class="sub">Monday, May 11 · ${todayCounts()}</div></div><div class="seek-logo">${SEEK_LOGO}</div></div>
-  ${S.stab==='create'?'':`<div class="seek-bar"><div class="tabs" role="tablist">${t('today','Today')}${t('all','All')}</div><button class="btn primary" data-act="create">${ic('calendar_add',20)} Create an event</button></div>`}
+  ${S.stab==='create'?'':`<div class="seek-bar"><div class="tabs" role="tablist">${t('today','Today')}${t('all','Calendar')}</div><button class="btn primary" data-act="create">${ic('calendar_add',20)} Create an event</button></div>`}
   ${body}</div></div></div>`;
 }
-function todayCounts(){const t=ITEMS.filter(i=>i.date===TODAY_K);const m=t.filter(i=>i.type==='moment').length,e=t.length-m;return `${m} moment${m===1?'':'s'} and ${e} event${e===1?'':'s'} today`}
+function todayCounts(){const t=ITEMS.filter(i=>i.date===TODAY_K);const m=t.filter(i=>i.type==='moment').length,e=t.length-m;return `${m} pop-up${m===1?'':'s'} and ${e} event${e===1?'':'s'} today`}
 const isPast=it=>it.date<TODAY_K||(it.date===TODAY_K&&it.end<=NOW);
 function timeLabel(it){if(it.date===TODAY_K&&it.rel)return it.rel;if(it.date===TODAY_K&&it.start<=NOW&&it.end>NOW)return 'Happening now';return fmtT(it.start)}
 function dayLabel(k){const d=parseYmd(k);if(k===TODAY_K)return 'Today';if(k===ymd(addDays(TODAY,1)))return 'Tomorrow';return `${DOW[d.getDay()].slice(0,3)}, ${MON[d.getMonth()].slice(0,3)} ${d.getDate()}`}
@@ -601,7 +601,7 @@ function addBtn(it,sm=true){
 }
 function card(it){
  return `<article class="card ev ${it.type} ${isPast(it)?'past':''} ${S.flash===it.id?'flash':''}">
-  <div class="ev-by">${av(PEOPLE[it.by]||it.by,20)}<span>Posted by <b>@${esc(it.by)}</b></span><span class="badge-t ${it.type}">${it.type==='moment'?'Moment':'Event'}</span>${it.date===TODAY_K&&it.start<=NOW+.5&&!isPast(it)?`<span class="badge-t live">${it.start<=NOW?'Live':'Soon'}</span>`:''}</div>
+  <div class="ev-by">${av(PEOPLE[it.by]||it.by,20)}<span>Posted by <b>@${esc(it.by)}</b></span><span class="badge-t ${it.type}">${it.type==='moment'?'Pop-up':'Event'}</span>${it.date===TODAY_K&&it.start<=NOW+.5&&!isPast(it)?`<span class="badge-t live">${it.start<=NOW?'Live':'Soon'}</span>`:''}</div>
   <div class="ev-emoji" aria-hidden="true">${it.emoji}</div>
   <h3 class="ev-title">${esc(it.title)}</h3>
   <div class="ev-meta"><span>${ic('location',16)}${esc(it.loc)}</span><span>${ic('clock',16)}${timeLabel(it)}</span>${it.date!==TODAY_K?`<span>${ic('calendar_ltr',16)}${dayLabel(it.date)}</span>`:''}</div>
@@ -614,10 +614,14 @@ function todayView(){
  const cur=S.seg==='moments'?mo:ev;
  return `<div class="row between"><h2 class="sect">What’s happening today?</h2></div>
  <div class="row between" style="margin-top:12px"><div class="ctabs" role="tablist">
-   <button class="ctab ${S.seg==='moments'?'sel':''}" data-act="seg" data-arg="moments">Moments <span class="count">${mo.length}</span></button>
+   <button class="ctab ${S.seg==='moments'?'sel':''}" data-act="seg" data-arg="moments">Pop-ups <span class="count">${mo.length}</span></button>
    <button class="ctab ${S.seg==='events'?'sel':''}" data-act="seg" data-arg="events">Events <span class="count">${ev.length}</span></button></div>
-  ${dropdown('view',[['list','List','apps'],['calendar','Calendar','calendar_ltr']],S.view)}</div>
- ${S.view==='calendar'?`<div style="margin-top:16px">${weekView(true)}</div>`:`<div class="list">${cur.map(card).join('')||`<div class="empty" style="padding:40px">Nothing posted yet.</div>`}</div>`}`;
+  ${dropdown('view',[['cards','Cards'],['compact','Compact']],S.view)}</div>
+ ${S.view==='compact'?compactList(cur):`<div class="list">${cur.map(card).join('')||`<div class="empty" style="padding:40px">Nothing posted yet.</div>`}</div>`}`;
+}
+function compactList(items){
+ if(!items.length)return `<div class="empty" style="padding:40px">Nothing posted yet.</div>`;
+ return `<div class="cal" style="margin-top:16px;padding:6px 8px">${items.map(it=>`<div class="ag-row ${it.type} ${S.flash===it.id?'flash':''}" style="${isPast(it)?'opacity:.6':''}"><div class="t">${timeLabel(it)}</div><div class="bar"></div><div><div class="ttl">${esc(it.title)} ${it.emoji}</div><div class="cap">${esc(it.loc)} · @${esc(it.by)} · ${goingCount(it)} going</div></div>${addBtn(it)}</div>`).join('')}</div>`;
 }
 function dropdown(id,opts,val,prefix=''){
  const cur=opts.find(o=>o[0]===val);
@@ -636,8 +640,8 @@ function calendarView(){
   <div class="ctabs" role="tablist">${[['agenda','All'],['week','Week'],['month','Month']].map(([k,l])=>`<button class="ctab ${S.cal===k?'sel':''}" data-act="cal" data-arg="${k}">${l}</button>`).join('')}</div>
   ${S.cal!=='agenda'?`<span class="vsep"></span><button class="btn" style="min-width:0" data-act="caltoday">${ic('calendar_ltr',16)} Today</button><button class="icbtn" data-act="calnav" data-arg="-1" aria-label="Previous">${ic('chevron_left',16)}</button><button class="icbtn" data-act="calnav" data-arg="1" aria-label="Next">${ic('chevron_right',16)}</button>`:''}
   <span class="cal-range">${range}</span><span style="flex:1"></span>
-  <span class="legend"><span><i style="background:var(--moment-bar)"></i>Moments</span><span><i style="background:var(--event-bar)"></i>Events</span></span>
-  ${dropdown('filter',[['all','All'],['moments','Moments'],['events','Events']],S.filter,'Show:')}</div>
+  <span class="legend"><span><i style="background:var(--moment-bar)"></i>Pop-ups</span><span><i style="background:var(--event-bar)"></i>Events</span></span>
+  ${dropdown('filter',[['all','All'],['moments','Pop-ups'],['events','Events']],S.filter,'Show:')}</div>
   ${S.cal==='week'?weekView():S.cal==='month'?monthView():agendaView()}`;
 }
 const H0=8,H1=22,PX=48;
@@ -672,7 +676,7 @@ function popover(){
  return `<div class="pop" role="dialog" aria-label="${esc(it.title)}" style="left:${S.pop.x}px;top:${S.pop.y}px"><span class="beak" style="${S.pop.side==='r'?'left:-6px':'right:-6px'};top:${S.pop.by}px"></span>
   <div class="row between"><div class="ev-by">${av(PEOPLE[it.by]||it.by,20)}<span>Posted by <b>@${esc(it.by)}</b></span></div><button class="icbtn" style="width:24px;height:24px" data-act="closepop" aria-label="Close">${ic('dismiss',16)}</button></div>
   <h4>${esc(it.title)} ${it.emoji}</h4>
-  <div class="meta"><span class="badge-t ${it.type}">${it.type==='moment'?'Moment':'Event'}</span><span>${esc(it.loc)}</span><span>·</span><span>${DOW[d.getDay()]} ${fmtT(it.start)}</span></div>
+  <div class="meta"><span class="badge-t ${it.type}">${it.type==='moment'?'Pop-up':'Event'}</span><span>${esc(it.loc)}</span><span>·</span><span>${DOW[d.getDay()]} ${fmtT(it.start)}</span></div>
   <div class="lbl">Description</div><p>${esc(it.desc)}</p>
   <div class="row" style="margin-top:12px">${pile(it)}<span class="cap">${goingCount(it)} going</span></div>
   <div class="acts">${isPast(it)?`<span class="ended">${ic('checkmark_circle',16)} Ended</span>`:`<button class="btn sm ${S.added.has(it.id)?'on':'primary'}" data-act="add" data-arg="${it.id}">${ic(S.added.has(it.id)?'checkmark':'calendar_add',16)} ${S.added.has(it.id)?'Added':'Add to calendar'}</button>`}</div></div>`;
@@ -683,7 +687,7 @@ function createView(){
  const f=S.form,e=S.errs;
  const err=k=>e[k]?`<div class="errmsg">${ic('info_f',12)}${e[k]}</div>`:'';
  return `<button class="btn subtle back" data-act="stab" data-arg="today">${ic('arrow_left',16)} Back</button>
- <div class="create"><div><h2 class="sect">Create an event</h2><div class="cap" style="font-size:14px;line-height:20px;margin:4px 0 20px">Post a moment or an event for everyone at Contoso. It only takes four fields.</div>
+ <div class="create"><div><h2 class="sect">Create an event</h2><div class="cap" style="font-size:14px;line-height:20px;margin:4px 0 20px">Post a pop-up or an event for everyone at Contoso. It only takes four fields.</div>
   <form class="form" id="cform" novalidate>
    <div><label class="lbl" for="f-name">Name<span class="req">*</span></label><div class="inp ${e.name?'err':''}"><input id="f-name" data-f="name" value="${esc(f.name)}" placeholder="e.g. Pizza in the kitchen" maxlength="60" autocomplete="off"></div>${err('name')}</div>
    <div class="f-row">
@@ -722,7 +726,7 @@ function dialog(){
    <div class="ad-head"><div class="ad-logo">${SEEK_LOGO.replace('class="logo"','width="52" height="52"')}</div><div style="flex:1"><h2>SEEK</h2><div class="ad-pub">SEEK Labs · ${ic('shield_checkmark',16)} Publisher verified</div><div class="ad-tags"><span class="tag">Tabs</span><span class="tag">Bots</span><span class="tag">Meetings</span><span class="tag">Messaging</span></div></div><button class="icbtn" style="align-self:flex-start" data-act="closedlg" aria-label="Close">${ic('dismiss',20)}</button></div>
    <div class="ad-grid"><div>
     <p>See what’s happening around the office, from the quarterly party to leftover cake in the kitchen. Post in four fields, or mention <span class="mention">@SEEK</span> in any chat and it picks up the details for you.</p>
-    <div class="feat"><span class="fi">${ic('calendar_ltr',18)}</span><div><b>Today at a glance</b><span>A meeting or channel tab with every moment and event happening today.</span></div></div>
+    <div class="feat"><span class="fi">${ic('calendar_ltr',18)}</span><div><b>Today at a glance</b><span>A meeting or channel tab with every pop-up and event happening today.</span></div></div>
     <div class="feat"><span class="fi">${ic('calendar_add',18)}</span><div><b>One-click RSVP</b><span>Add anything to your Outlook calendar without leaving Teams.</span></div></div>
     <div class="feat"><span class="fi">${ic('sparkle',18)}</span><div><b>Smart detection in chat</b><span>The SEEK bot spots plans in a conversation and turns them into events for the team.</span></div></div>
    </div><div class="perm"><h4>${ic('shield_checkmark',16)} Permissions</h4>This app will have permission to:<ul style="margin-top:6px"><li>Receive messages and data that I provide to it</li><li>Send me messages and notifications</li><li>Access my profile information such as my name and email address</li><li>Read and write to my calendar</li></ul><a class="a" href="#" onclick="return false">Learn more</a></div></div>
@@ -816,7 +820,7 @@ function openPop(id,el){
 function goStep(n){
  S.pop=null;S.dd=null;
  if(n===1){Object.assign(S,{rail:'calendar',mtab:'details',installed:false,dialog:'store',storeQ:'',adding:false,stab:'today'})}
- if(n===2){Object.assign(S,{rail:'calendar',installed:true,dialog:null,mtab:'seek',stab:'today',seg:'events',view:'list'})}
+ if(n===2){Object.assign(S,{rail:'calendar',installed:true,dialog:null,mtab:'seek',stab:'today',seg:'events',view:'cards'})}
  if(n===3){Object.assign(S,{rail:'calendar',installed:true,dialog:null,mtab:'seek',stab:'create',errs:{}})}
  if(n===4){Object.assign(S,{installed:true,dialog:null,rail:'chat',chatBadge:0});if(S.scripted){S.chat=initialChat();S.draft=DRAFT;S.scripted=false}}
  render();
@@ -873,7 +877,7 @@ document.addEventListener('click',e=>{
   case 'seg': S.seg=arg; render(); break;
   case 'create': S.stab='create'; S.errs={}; render(); setTimeout(()=>$('#f-name')?.focus(),30); break;
   case 'dd': S.dd=S.dd===arg?null:arg; render(); break;
-  case 'pick': {const [id,v]=arg.split(':');S.dd=null;if(id==='view'){if(v==='calendar'){S.stab='all';S.cal='week';S.view='list'}else S.view=v}else if(id==='filter')S.filter=v;render();break}
+  case 'pick': {const [id,v]=arg.split(':');S.dd=null;if(id==='view')S.view=v;else if(id==='filter')S.filter=v;render();break}
   case 'add': toggleAdd(arg); break;
   case 'cal': S.cal=arg; S.pop=null; render(); break;
   case 'caltoday': S.weekStart=mondayOf(TODAY); S.month=new Date(2026,4,1); S.pop=null; render(); break;
@@ -881,7 +885,7 @@ document.addEventListener('click',e=>{
   case 'pop': if(S.pop&&S.pop.id===arg){S.pop=null;render()}else openPop(arg,a); break;
   case 'closepop': S.pop=null; render(); break;
   case 'moreday': S.cal='week'; S.weekStart=mondayOf(parseYmd(arg)); render(); break;
-  case 'viewinseek': {const it=ITEMS.find(i=>i.id===arg);S.rail='calendar';S.mtab='seek';S.stab='today';S.seg=it&&it.type==='moment'?'moments':'events';S.view='list';S.flash=arg;render();setTimeout(()=>{S.flash=null},2300);break}
+  case 'viewinseek': {const it=ITEMS.find(i=>i.id===arg);S.rail='calendar';S.mtab='seek';S.stab='today';S.seg=it&&it.type==='moment'?'moments':'events';S.view='cards';S.flash=arg;render();setTimeout(()=>{S.flash=null},2300);break}
  }
 });
 document.addEventListener('input',e=>{
@@ -900,7 +904,7 @@ document.addEventListener('submit',e=>{
   S.errs=errs;if(Object.keys(errs).length){render();const k=Object.keys(errs)[0];$('#f-'+k)?.focus();return}
   const it=draftItem();it.id='p'+Date.now();it.going=1;it.title=f.name.trim();ITEMS.push(it);S.added.add(it.id);
   S.form={name:'',date:TODAY_K,time:'',desc:''};
-  if(it.date===TODAY_K){S.stab='today';S.seg='moments';S.view='list'}else{S.stab='all';S.cal='agenda'}
+  if(it.date===TODAY_K){S.stab='today';S.seg='moments';S.view='cards'}else{S.stab='all';S.cal='agenda'}
   S.flash=it.id;render();setTimeout(()=>{S.flash=null},2300);
   toast('Your event is live',`${it.title} · ${dayLabel(it.date)}, ${fmtT(it.start)}`,'Share in TerraSync chat',()=>{S.rail='chat';S.chatBadge=0;S.draft=`@SEEK ${it.title} at ${fmtT(it.start)}${it.loc&&it.loc!=='Location TBD'?' in the '+it.loc.toLowerCase():''}. Who’s in?`;render()});
  }

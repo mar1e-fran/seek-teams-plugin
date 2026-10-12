@@ -825,7 +825,7 @@ function goStep(n){
  render();
 }
 function curStep(){if(S.rail==='chat')return 4;if(!S.installed||S.dialog)return 1;if(S.mtab==='seek'&&S.stab==='create')return 3;return 2}
-const STEPS=[['Install','SEEK is added from the Teams app store, so there is no new software to approve.'],['Browse','Today’s events, each one click from the employee’s calendar.'],['Create','Anyone can post an event in four fields.'],['Detect','The SEEK bot spots an event in a chat and posts it for the team.']];
+const STEPS=[['Install','SEEK is added from the Teams app store, so there is no new software to approve.'],['Browse','Today’s events, each one click away from the employee’s calendar.'],['Create','Anyone can post an event in four fields.'],['Detect','The SEEK bot spots an event in a chat and posts it for the team.']];
 function steps(){requestAnimationFrame(()=>typeof fit==='function'&&fit());const c=curStep();$('#steps').innerHTML=`<div class="steps">${STEPS.map((s,i)=>`<button class="st ${c===i+1?'sel':''}" data-step="${i+1}"><i>${i+1}</i>${s[0]}</button>`).join('')}</div><div class="st-cap"><b>${c}. ${STEPS[c-1][0]}.</b> ${STEPS[c-1][1]}</div>`}
 
 function sendChat(text){

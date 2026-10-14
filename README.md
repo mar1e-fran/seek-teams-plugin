@@ -6,7 +6,7 @@ Interactive prototype of SEEK, a Microsoft Teams app for discovering and posting
 
 ## The flow
 1. **Install** – SEEK is added from the Teams app store, so there is no new software to approve.
-2. **Browse** – Today's pop-ups and events, each one click from the employee's calendar (list, week and month views).
+2. **Browse** – Today's events of the day and planned events, each one click from the employee's calendar (list, week and month views).
 3. **Create** – Anyone can post an event in four fields.
 4. **Detect** – The SEEK bot spots an event in a chat and posts it for the team.
 

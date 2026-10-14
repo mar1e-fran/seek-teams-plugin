@@ -591,7 +591,7 @@ function seekView(){
   ${S.stab==='create'?'':`<div class="seek-bar"><div class="tabs" role="tablist">${t('today','Today')}${t('all','Calendar')}</div><button class="btn primary" data-act="create">${ic('calendar_add',20)} Create an event</button></div>`}
   ${body}</div></div></div>`;
 }
-function todayCounts(){const t=ITEMS.filter(i=>i.date===TODAY_K);const m=t.filter(i=>i.type==='moment').length,e=t.length-m;return `${m} event${m===1?'':'s'} of the day, ${e} planned`}
+function todayCounts(){const t=ITEMS.filter(i=>i.date===TODAY_K);const m=t.filter(i=>i.type==='moment').length,e=t.length-m;return `${m} pop-up${m===1?'':'s'} and ${e} event${e===1?'':'s'} today`}
 const isPast=it=>it.date<TODAY_K||(it.date===TODAY_K&&it.end<=NOW);
 function timeLabel(it){if(it.date===TODAY_K&&it.rel)return it.rel;if(it.date===TODAY_K&&it.start<=NOW&&it.end>NOW)return 'Happening now';return fmtT(it.start)}
 function dayLabel(k){const d=parseYmd(k);if(k===TODAY_K)return 'Today';if(k===ymd(addDays(TODAY,1)))return 'Tomorrow';return `${DOW[d.getDay()].slice(0,3)}, ${MON[d.getMonth()].slice(0,3)} ${d.getDate()}`}
@@ -604,7 +604,7 @@ function addBtn(it,sm=true){
 }
 function card(it,{badge=true}={}){
  return `<article class="card ev ${it.type} ${isPast(it)?'past':''} ${S.flash===it.id?'flash':''}">
-  <div class="ev-by">${av(PEOPLE[it.by]||it.by,20)}<span>Posted by <b>@${esc(it.by)}</b></span>${badge?`<span class="badge-t ${it.type}">${it.type==='moment'?'Event of the day':'Event'}</span>`:''}${it.date===TODAY_K&&it.start<=NOW+.5&&!isPast(it)?`<span class="badge-t live">${it.start<=NOW?'Live':'Soon'}</span>`:''}</div>
+  <div class="ev-by">${av(PEOPLE[it.by]||it.by,20)}<span>Posted by <b>@${esc(it.by)}</b></span>${badge?`<span class="badge-t ${it.type}">${it.type==='moment'?'Pop-up':'Event'}</span>`:''}${it.date===TODAY_K&&it.start<=NOW+.5&&!isPast(it)?`<span class="badge-t live">${it.start<=NOW?'Live':'Soon'}</span>`:''}</div>
   <div class="ev-emoji" aria-hidden="true">${it.emoji}</div>
   <h3 class="ev-title">${esc(it.title)}</h3>
   <div class="ev-meta"><span>${ic('location',16)}${esc(it.loc)}</span><span>${ic('clock',16)}${timeLabel(it)}</span>${it.date!==TODAY_K?`<span>${ic('calendar_ltr',16)}${dayLabel(it.date)}</span>`:''}</div>
@@ -617,7 +617,7 @@ function todayView(){
  const cur=S.seg==='moments'?mo:ev;
  return `<div class="row between"><h2 class="sect">What’s happening today?</h2></div>
  <div class="row between" style="margin-top:12px"><div class="ctabs" role="tablist">
-   <button class="ctab ${S.seg==='moments'?'sel':''}" data-act="seg" data-arg="moments">Events of the day <span class="count">${mo.length}</span></button>
+   <button class="ctab ${S.seg==='moments'?'sel':''}" data-act="seg" data-arg="moments">Pop-ups <span class="count">${mo.length}</span></button>
    <button class="ctab ${S.seg==='events'?'sel':''}" data-act="seg" data-arg="events">Events <span class="count">${ev.length}</span></button></div>
   ${dropdown('view',[['cards','Cards'],['compact','Compact']],S.view)}</div>
  ${typeNote(S.seg)}
@@ -648,8 +648,8 @@ function calendarView(){
   <div class="ctabs" role="tablist">${[['agenda','All'],['week','Week'],['month','Month']].map(([k,l])=>`<button class="ctab ${S.cal===k?'sel':''}" data-act="cal" data-arg="${k}">${l}</button>`).join('')}</div>
   ${S.cal!=='agenda'?`<span class="vsep"></span><button class="btn" style="min-width:0" data-act="caltoday">${ic('calendar_ltr',16)} Today</button><button class="icbtn" data-act="calnav" data-arg="-1" aria-label="Previous">${ic('chevron_left',16)}</button><button class="icbtn" data-act="calnav" data-arg="1" aria-label="Next">${ic('chevron_right',16)}</button>`:''}
   <span class="cal-range">${range}</span><span style="flex:1"></span>
-  <span class="legend"><span title="Spur-of-the-moment, posted on the day"><i style="background:var(--moment-bar)"></i>Events of the day</span><span title="Planned ahead"><i style="background:var(--event-bar)"></i>Events</span></span>
-  ${dropdown('filter',[['all','All'],['moments','Events of the day'],['events','Events']],S.filter,'Show:')}</div>
+  <span class="legend"><span title="Spur-of-the-moment, posted on the day"><i style="background:var(--moment-bar)"></i>Pop-ups</span><span title="Planned ahead"><i style="background:var(--event-bar)"></i>Events</span></span>
+  ${dropdown('filter',[['all','All'],['moments','Pop-ups'],['events','Events']],S.filter,'Show:')}</div>
   ${S.cal==='week'?weekView():S.cal==='month'?monthView():agendaView()}`;
 }
 const H0=8,H1=22,PX=48;
@@ -684,7 +684,7 @@ function popover(){
  return `<div class="pop" role="dialog" aria-label="${esc(it.title)}" style="left:${S.pop.x}px;top:${S.pop.y}px"><span class="beak" style="${S.pop.side==='r'?'left:-6px':'right:-6px'};top:${S.pop.by}px"></span>
   <div class="row between"><div class="ev-by">${av(PEOPLE[it.by]||it.by,20)}<span>Posted by <b>@${esc(it.by)}</b></span></div><button class="icbtn" style="width:24px;height:24px" data-act="closepop" aria-label="Close">${ic('dismiss',16)}</button></div>
   <h4>${esc(it.title)} ${it.emoji}</h4>
-  <div class="meta"><span class="badge-t ${it.type}">${it.type==='moment'?'Event of the day':'Event'}</span><span>${esc(it.loc)}</span><span>·</span><span>${DOW[d.getDay()]} ${fmtT(it.start)}</span></div>
+  <div class="meta"><span class="badge-t ${it.type}">${it.type==='moment'?'Pop-up':'Event'}</span><span>${esc(it.loc)}</span><span>·</span><span>${DOW[d.getDay()]} ${fmtT(it.start)}</span></div>
   <div class="lbl">Description</div><p>${esc(it.desc)}</p>
   <div class="row" style="margin-top:12px">${pile(it)}<span class="cap">${goingCount(it)} going</span></div>
   <div class="acts">${isPast(it)?`<span class="ended">${ic('checkmark_circle',16)} Ended</span>`:`<button class="btn sm ${S.added.has(it.id)?'on':'primary'}" data-act="add" data-arg="${it.id}">${ic(S.added.has(it.id)?'checkmark':'calendar_add',16)} ${S.added.has(it.id)?'Added':'Add to calendar'}</button>`}</div></div>`;

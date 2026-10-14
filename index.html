@@ -602,9 +602,9 @@ function addBtn(it,sm=true){
  const on=S.added.has(it.id);
  return `<button class="btn ${sm?'sm':''} ${on?'on':'brandtext'}" data-act="add" data-arg="${it.id}" aria-pressed="${on}">${ic(on?'checkmark':'add_circle',16)} ${on?'Added':'Add to calendar'}</button>`;
 }
-function card(it){
+function card(it,{badge=true}={}){
  return `<article class="card ev ${it.type} ${isPast(it)?'past':''} ${S.flash===it.id?'flash':''}">
-  <div class="ev-by">${av(PEOPLE[it.by]||it.by,20)}<span>Posted by <b>@${esc(it.by)}</b></span><span class="badge-t ${it.type}">${it.type==='moment'?'Event of the day':'Event'}</span>${it.date===TODAY_K&&it.start<=NOW+.5&&!isPast(it)?`<span class="badge-t live">${it.start<=NOW?'Live':'Soon'}</span>`:''}</div>
+  <div class="ev-by">${av(PEOPLE[it.by]||it.by,20)}<span>Posted by <b>@${esc(it.by)}</b></span>${badge?`<span class="badge-t ${it.type}">${it.type==='moment'?'Event of the day':'Event'}</span>`:''}${it.date===TODAY_K&&it.start<=NOW+.5&&!isPast(it)?`<span class="badge-t live">${it.start<=NOW?'Live':'Soon'}</span>`:''}</div>
   <div class="ev-emoji" aria-hidden="true">${it.emoji}</div>
   <h3 class="ev-title">${esc(it.title)}</h3>
   <div class="ev-meta"><span>${ic('location',16)}${esc(it.loc)}</span><span>${ic('clock',16)}${timeLabel(it)}</span>${it.date!==TODAY_K?`<span>${ic('calendar_ltr',16)}${dayLabel(it.date)}</span>`:''}</div>
@@ -621,7 +621,7 @@ function todayView(){
    <button class="ctab ${S.seg==='events'?'sel':''}" data-act="seg" data-arg="events">Events <span class="count">${ev.length}</span></button></div>
   ${dropdown('view',[['cards','Cards'],['compact','Compact']],S.view)}</div>
  ${typeNote(S.seg)}
- ${S.view==='compact'?compactList(cur):`<div class="list">${cur.map(card).join('')||`<div class="empty" style="padding:40px">Nothing posted yet.</div>`}</div>`}`;
+ ${S.view==='compact'?compactList(cur):`<div class="list">${cur.map(i=>card(i,{badge:false})).join('')||`<div class="empty" style="padding:40px">Nothing posted yet.</div>`}</div>`}`;
 }
 const TYPE_NOTES={
  moments:['sparkle','Spur-of-the-moment things coworkers post on the day, like leftover food, a coffee run or a lunch walk. No RSVP, just show up.'],

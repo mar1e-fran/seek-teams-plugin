@@ -165,6 +165,10 @@ input,textarea{font:inherit;color:inherit}
 .row.between{justify-content:space-between}
 h2.sect{font-size:20px;line-height:28px;font-weight:600;margin:0}
 .cap{font-size:12px;line-height:16px;color:var(--fg3)}
+.type-note{display:flex;align-items:flex-start;gap:8px;margin-top:12px;padding:8px 12px;border-radius:var(--r6);font-size:13px;line-height:18px;color:var(--fg2);background:var(--brand-bg2)}
+.type-note .ic{margin-top:1px;color:var(--brand-fg2)}
+.type-note.moments{background:var(--moment-badge-bg)}
+.type-note.moments .ic{color:var(--moment-badge-fg)}
 .list{display:flex;flex-direction:column;gap:12px;margin-top:16px}
 
 .card{background:var(--bg1);border-radius:var(--r8);box-shadow:var(--sh4);transition:box-shadow .15s var(--ease)}
@@ -616,8 +620,13 @@ function todayView(){
    <button class="ctab ${S.seg==='moments'?'sel':''}" data-act="seg" data-arg="moments">Events of the day <span class="count">${mo.length}</span></button>
    <button class="ctab ${S.seg==='events'?'sel':''}" data-act="seg" data-arg="events">Events <span class="count">${ev.length}</span></button></div>
   ${dropdown('view',[['cards','Cards'],['compact','Compact']],S.view)}</div>
+ ${typeNote(S.seg)}
  ${S.view==='compact'?compactList(cur):`<div class="list">${cur.map(card).join('')||`<div class="empty" style="padding:40px">Nothing posted yet.</div>`}</div>`}`;
 }
+const TYPE_NOTES={
+ moments:['sparkle','Spur-of-the-moment things coworkers post on the day, like leftover food, a coffee run or a lunch walk. No RSVP, just show up.'],
+ events:['calendar_ltr','Planned ahead by teams and HR. Add them to your calendar so you don’t miss out.']};
+function typeNote(seg){const [i,t]=TYPE_NOTES[seg];return `<div class="type-note ${seg}">${ic(i,16)}<span>${t}</span></div>`}
 function compactList(items){
  if(!items.length)return `<div class="empty" style="padding:40px">Nothing posted yet.</div>`;
  return `<div class="cal" style="margin-top:16px;padding:6px 8px">${items.map(it=>`<div class="ag-row ${it.type} ${S.flash===it.id?'flash':''}" style="${isPast(it)?'opacity:.6':''}"><div class="t">${timeLabel(it)}</div><div class="bar"></div><div><div class="ttl">${esc(it.title)} ${it.emoji}</div><div class="cap">${esc(it.loc)} · @${esc(it.by)} · ${goingCount(it)} going</div></div>${addBtn(it)}</div>`).join('')}</div>`;
@@ -639,7 +648,7 @@ function calendarView(){
   <div class="ctabs" role="tablist">${[['agenda','All'],['week','Week'],['month','Month']].map(([k,l])=>`<button class="ctab ${S.cal===k?'sel':''}" data-act="cal" data-arg="${k}">${l}</button>`).join('')}</div>
   ${S.cal!=='agenda'?`<span class="vsep"></span><button class="btn" style="min-width:0" data-act="caltoday">${ic('calendar_ltr',16)} Today</button><button class="icbtn" data-act="calnav" data-arg="-1" aria-label="Previous">${ic('chevron_left',16)}</button><button class="icbtn" data-act="calnav" data-arg="1" aria-label="Next">${ic('chevron_right',16)}</button>`:''}
   <span class="cal-range">${range}</span><span style="flex:1"></span>
-  <span class="legend"><span><i style="background:var(--moment-bar)"></i>Events of the day</span><span><i style="background:var(--event-bar)"></i>Events</span></span>
+  <span class="legend"><span title="Spur-of-the-moment, posted on the day"><i style="background:var(--moment-bar)"></i>Events of the day</span><span title="Planned ahead"><i style="background:var(--event-bar)"></i>Events</span></span>
   ${dropdown('filter',[['all','All'],['moments','Events of the day'],['events','Events']],S.filter,'Show:')}</div>
   ${S.cal==='week'?weekView():S.cal==='month'?monthView():agendaView()}`;
 }

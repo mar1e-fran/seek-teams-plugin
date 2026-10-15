@@ -37,7 +37,9 @@ body.embed:not(.dark) .steps{box-shadow:0 0 0 1px rgba(0,0,0,.08)}
 button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
 input,textarea{font:inherit;color:inherit}
 .ic{flex:none;display:block}
-#stageWrap{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:16px}
+#stageWrap{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:16px;overflow:hidden}
+/* the 1280px window must never widen the page: on phones that makes the browser grow the layout viewport, which fit() then measures */
+#scaler{overflow:hidden;max-width:100%}
 #scaler{flex:none;position:relative}
 #win{position:absolute;left:0;top:0;width:1280px;height:800px;transform-origin:0 0;background:var(--bg5);border-radius:8px;overflow:hidden;
   box-shadow:0 0 0 1px rgba(0,0,0,.08),0 32px 64px rgba(0,0,0,.18);display:grid;grid-template-rows:48px 1fr;grid-template-columns:68px 1fr;font-size:14px;line-height:20px}
@@ -933,10 +935,13 @@ function fit(){
  const embed=document.body.classList.contains('embed'),nonav=document.body.classList.contains('nonav');
  const steps=$('#steps');
  // shrink the step bar on small screens/iframes so the window keeps most of the space
- const ns=Math.max(.62,Math.min(1,innerWidth/1100));steps.style.zoom=ns;
+ const ns=Math.max(.62,Math.min(1,Math.min(innerWidth,document.documentElement.clientWidth)/1100));steps.style.zoom=ns;
  const gap=embed?10:16,padd=embed?0:32;
  const nav=nonav?0:steps.getBoundingClientRect().height+gap;
- const W=innerWidth-padd,H=innerHeight-padd-nav;
+ // measure what's actually visible (on phones innerWidth can report a widened layout viewport)
+ const vw=Math.min(innerWidth,document.documentElement.clientWidth,window.visualViewport?visualViewport.width:innerWidth);
+ const vh=Math.min(innerHeight,window.visualViewport?visualViewport.height:innerHeight);
+ const W=vw-padd,H=vh-padd-nav;
  SCALE=Math.min(W/1280,H/800,embed?10:1.2);
  $('#win').style.transform=`scale(${SCALE})`;
  const sc=$('#scaler');sc.style.width=1280*SCALE+'px';sc.style.height=800*SCALE+'px';
@@ -949,6 +954,7 @@ if(qs.get('theme')==='dark')document.body.classList.add('dark');
 render();
 if(qs.get('step'))goStep(+qs.get('step'));
 fit();addEventListener('resize',fit);
+if(window.visualViewport)visualViewport.addEventListener('resize',fit);
 </script>
 </body>
 </html>

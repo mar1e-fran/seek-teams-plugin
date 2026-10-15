@@ -19,5 +19,18 @@ Interactive prototype of SEEK, a Microsoft Teams app for discovering and posting
 - `?nav=0` hides the step bar
 - `?step=1..4` opens on a specific step
 
+## Project structure
+No build step. Open `index.html` through any static server.
+
+| File | What's in it |
+| --- | --- |
+| `index.html` | Page shell |
+| `css/styles.css` | Fluent 2 (Teams) tokens and all component styles |
+| `js/icons.js` | Fluent UI System Icons used by the prototype, plus the SEEK logo |
+| `js/data.js` | Demo content: events, pop-ups, people, app store, chats, step captions |
+| `js/app.js` | State, views, interactions, the chat bot's parser, scale-to-fit |
+
+To change what the demo shows, edit `js/data.js`.
+
 ## Team
 Marie Cabibihan, Hir Israni, Steven Chen, Jiwan Park, Priyanshi Jain

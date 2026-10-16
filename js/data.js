@@ -75,6 +75,17 @@ for (const day of [1, 8, 22, 29]) {
     date: `2026-05-${String(day).padStart(2, '0')}`, start: 16, end: 18, going: 36, desc: 'End-of-week drinks. Non-alcoholic options available.' });
 }
 
+/* The user's own Teams calendar. Items added from SEEK appear alongside these. */
+const MY_MEETINGS = [
+  { id: 'mtg-1', type: 'meeting', title: 'Marketing review', organizer: 'Beth Davis', date: '2026-05-11', start: 11.5, end: 12 },
+  { id: 'mtg-2', type: 'meeting', title: '1:1 with Beth', organizer: 'Beth Davis', date: '2026-05-11', start: 14.5, end: 15 },
+  { id: 'mtg-3', type: 'meeting', title: 'Sprint planning', organizer: 'Ray Tanaka', date: '2026-05-12', start: 10, end: 11 },
+  { id: 'mtg-4', type: 'meeting', title: 'Design review', organizer: 'Kayo Miwa', date: '2026-05-13', start: 13.5, end: 14.5 },
+  { id: 'mtg-5', type: 'meeting', title: 'Customer call', organizer: 'August Bergman', date: '2026-05-14', start: 9.5, end: 10.5 },
+  { id: 'mtg-6', type: 'meeting', title: 'Team retro', organizer: 'Beth Davis', date: '2026-05-15', start: 15, end: 16 },
+  { id: 'mtg-7', type: 'meeting', title: 'TerraSync launch sync', organizer: 'Hir Israni', date: '2026-05-13', start: 10, end: 10.5 },
+];
+
 /* Explainer shown under the Pop-ups / Events filter */
 const TYPE_NOTES = {
   popups: ['sparkle', 'Spur-of-the-moment things coworkers post on the day, like leftover food, a coffee run or a lunch walk. No RSVP, just show up.'],
@@ -158,7 +169,7 @@ const CHAT_REPLIES = [
 
 /* Portfolio step bar */
 const STEPS = [
-  ['Install', 'SEEK is added from the Teams app store, so there is no new software to approve.'],
+  ['Install', 'SEEK is added from the Teams app store and pinned to the app bar, so there is no new software to approve.'],
   ['Browse', 'Today’s events, each one click away from the employee’s calendar.'],
   ['Create', 'Anyone can post a quick pop-up or a planned event in four fields.'],
   ['Detect', 'A shortcut on top of event creation: the SEEK bot spots an event in a chat and offers to post it.'],

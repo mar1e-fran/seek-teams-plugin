@@ -93,20 +93,22 @@ function emptyForm() {
 
 const S = {
   // shell
-  rail: 'calendar',        // left app bar selection
-  meetingTab: 'details',   // chat | details | seek
+  rail: 'calendar',        // app bar selection: calendar | chat | seek | …
   installed: false,
   dialog: 'store',         // store | detail | null
   storeQuery: '',
   installing: false,
-  // SEEK tab
+  // SEEK app
   seekTab: 'today',        // today | calendar | create
   segment: 'events',       // popups | events
   view: 'cards',           // cards | compact
-  calView: 'week',         // agenda | week | month
+  calView: 'week',         // SEEK calendar: agenda | week | month
   filter: 'all',           // all | popups | events
   weekStart: mondayOf(TODAY),
   month: new Date(TODAY.getFullYear(), TODAY.getMonth(), 1),
+  // Teams calendar
+  teamsWeek: mondayOf(TODAY),
+  calFlash: null,          // id of an entry to highlight once
   added: new Set(),        // item ids the user added to their calendar
   popover: null,           // { id, x, y, side, beakY }
   openDropdown: null,
@@ -189,111 +191,50 @@ function appBar() {
       ${ic(sel ? `${icon}_f` : icon, 24)}${badge}<span>${label}</span></button>`;
   };
   const seek = S.installed
-    ? `<button class="rail-i" data-act="openSeek" aria-label="SEEK">${seekLogo(24)}<span>SEEK</span></button>`
+    ? `<button class="rail-i ${S.rail === 'seek' ? 'sel' : ''}" data-act="openSeek" aria-label="SEEK">${seekLogo(24)}<span>SEEK</span></button>`
     : '';
   return `<nav class="rail">
     ${RAIL.map(item).join('')}${seek}
     <button class="rail-i" aria-label="More apps">${ic('more_horizontal', 24)}</button>
     <div class="rail-sep"></div>
-    <button class="rail-i" data-act="openStore" aria-label="Apps">${ic('add_square', 24)}<span>Apps</span></button>
+    <button class="rail-i ${!S.installed && !S.dialog ? 'pulse' : ''}" data-act="openStore" aria-label="Apps">${ic('add_square', 24)}<span>Apps</span></button>
   </nav>`;
 }
 
 function mainView() {
   if (S.rail === 'chat') return chatView();
-  if (S.rail === 'calendar') return meetingView();
+  if (S.rail === 'calendar') return teamsCalendarView();
+  if (S.rail === 'seek') return seekView();
   const { label, icon } = RAIL.find((r) => r.id === S.rail);
   return `<div class="empty"><div>${ic(icon, 48)}<h3>${label}</h3>
     <div>This area isn’t part of the SEEK prototype.<br>
-    <button class="link" data-act="rail" data-arg="calendar">Back to Marketing review</button></div></div></div>`;
+    <button class="link" data-act="rail" data-arg="calendar">Go to Calendar</button></div></div></div>`;
 }
 
-const tab = (act, key, label, selected, prefix = '') =>
-  `<button class="tab ${selected ? 'sel' : ''}" data-act="${act}" data-arg="${key}">${prefix}${label}</button>`;
-const seekTabIcon = () => `<span class="tab-logo">${seekLogo(16)}</span>`;
+const tab = (act, key, label, selected) =>
+  `<button class="tab ${selected ? 'sel' : ''}" data-act="${act}" data-arg="${key}">${label}</button>`;
 
-/* ================= Meeting ================= */
-
-function meetingView() {
-  const t = (key, label, prefix) => tab('meetingTab', key, label, S.meetingTab === key, prefix);
-  const body = { seek: seekView, details: detailsView, chat: meetingChatView }[S.meetingTab]();
-  return `<header class="mh">
-      <div class="mh-icon">${ic('calendar_ltr')}</div>
-      <div class="mh-title">Marketing review</div>
-      <div class="tabs" role="tablist">
-        ${t('chat', 'Chat')}${t('details', 'Details')}${S.installed ? t('seek', 'SEEK', seekTabIcon()) : ''}
-        <button class="tab tab-add ${!S.installed && !S.dialog ? 'pulse' : ''}" data-act="openStore" aria-label="Add a tab">${ic('add')}</button>
-      </div>
-      <div class="mh-actions"><button class="btn primary">Join</button><button class="btn">Close</button></div>
-    </header>
-    ${body}`;
-}
-
-function detailsView() {
-  return `<div class="det-toolbar">
-      <button class="btn subtle brandtext">${ic('checkmark', 16)} Accepted ${ic('chevron_down', 12)}</button>
-      <div class="vsep"></div>
-      <button class="btn subtle">${ic('link', 16)} Copy link</button>
-      <button class="btn subtle">${ic('more_horizontal', 16)}</button>
-    </div>
-    <div class="scroll" data-keep="details"><div class="det">
-      <div class="det-row">${ic('info')}<div>
-        <b>Monday, May 11, 2026 &nbsp;11:30 AM – 12:00 PM</b>
-        <div class="cap">Organizer: Beth Davis · 8 attendees</div>
-      </div></div>
-      <div class="det-row">${ic('text_description')}<div>
-        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p>
-        <p>Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
-        <h2>Microsoft Teams meeting</h2>
-        <div class="tight">
-          <p><b>Join on your computer, mobile app or room device</b></p>
-          <p>${link('Click here to join the meeting')}</p>
-          <p>Meeting ID: 284 391 552 107 &nbsp; Passcode: Kp7xQ2</p>
-          <p class="gap"><b>Or call in (audio only)</b></p>
-          <p>${link('+1 555-0100,,333333333#')} &nbsp;United States</p>
-          <p>Phone conference ID: 333 333 333#</p>
-          <p>${link('Find a local number')} | ${link('Reset PIN')}</p>
-          <p class="gap">${link('Learn more')} | ${link('Meeting options')}</p>
-        </div>
-      </div></div>
-    </div></div>`;
-}
-
-function meetingChatView() {
-  const content = S.installed
-    ? `<div class="daysep">Today</div>
-       <div class="m"><div class="botav">${SEEK_LOGO}</div><div>
-         <div class="hd"><b>SEEK</b><span class="apptag">App</span><span>11:05 AM</span></div>
-         <div class="bub">Sarah Lin added <b>SEEK</b> to this meeting. Open the SEEK tab to see what’s happening today.</div>
-       </div></div>`
-    : `<div class="empty"><div>${ic('chat', 48)}<h3>No messages yet</h3>
-       <div>Messages sent before, during and after the meeting show up here.</div></div></div>`;
-  return `<div class="cv"><div class="msgs">${content}</div>
-    <div class="comp"><div class="comp-box">
-      <input placeholder="Type a message" aria-label="Type a message">
-      <div class="comp-tools"><span class="icbtn">${ic('emoji')}</span><span class="icbtn">${ic('attach')}</span></div>
-      <span class="send">${ic('send')}</span>
-    </div></div></div>`;
-}
-
-/* ================= SEEK tab ================= */
+/* ================= SEEK personal app ================= */
+/* SEEK lives on the app bar like any Teams personal app. It has no calendar of
+   its own: "Add to calendar" puts things into the user's Teams calendar. */
 
 function seekView() {
   const body = { today: todayView, calendar: calendarView, create: createView }[S.seekTab]();
-  const tabs = S.seekTab === 'create' ? '' : `<div class="seek-bar">
-      <div class="tabs" role="tablist">
-        ${tab('seekTab', 'today', 'Today', S.seekTab === 'today')}${tab('seekTab', 'calendar', 'Calendar', S.seekTab === 'calendar')}
-      </div>
+  const t = (key, label) => tab('seekTab', key, label, S.seekTab === key);
+  const head = S.seekTab === 'create' ? '' : `<div class="seek-head">
+      <div><h1>Welcome back, Sarah!</h1><div class="sub">Monday, May 11 · ${todaySummary()}</div></div>
       <button class="btn primary" data-act="openCreate">${ic('calendar_add')} Create an event</button>
     </div>`;
-  return `<div class="scroll" data-keep="seek-${S.seekTab}"><div class="seek"><div class="seek-in">
-    <div class="seek-head">
-      <div><h1>Welcome back, Sarah!</h1><div class="sub">Monday, May 11 · ${todaySummary()}</div></div>
-      <div class="seek-logo">${SEEK_LOGO}</div>
-    </div>
-    ${tabs}
-    ${body}
-  </div></div></div>`;
+  return `<header class="mh">
+      <span class="mh-app">${seekLogo(24)}</span>
+      <div class="mh-title">SEEK</div>
+      <div class="tabs" role="tablist">${t('today', 'Today')}${t('calendar', 'Calendar')}</div>
+      <div class="mh-actions"><button class="icbtn" aria-label="More options">${ic('more_horizontal')}</button></div>
+    </header>
+    <div class="scroll" data-keep="seek-${S.seekTab}"><div class="seek"><div class="seek-in">
+      ${head}
+      ${body}
+    </div></div></div>`;
 }
 
 function addButton(it) {
@@ -379,7 +320,9 @@ function dropdown(id, options, value, prefix = '') {
     </button>${menu}</div>`;
 }
 
-/* ---------- Calendar ---------- */
+/* ---------- SEEK calendar ----------
+   Everything happening around the office, to browse and pick from.
+   It is not the user's calendar: "Add to calendar" sends items to the Teams calendar. */
 
 function calendarView() {
   let range = 'Upcoming';
@@ -406,10 +349,10 @@ function calendarView() {
       </span>
       ${dropdown('filter', [['all', 'All'], ['popups', 'Pop-ups'], ['events', 'Events']], S.filter, 'Show:')}
     </div>
+    <div class="type-note events cal-note">${ic('calendar_ltr', 16)}<span>Everything happening around the office. Anything you add shows up in your Teams calendar, next to your meetings.</span>
+      <button class="link" data-act="rail" data-arg="calendar">Open Teams calendar</button></div>
     ${body}`;
 }
-
-const FIRST_HOUR = 8, LAST_HOUR = 22, HOUR_PX = 48;
 
 function weekView() {
   const days = Array.from({ length: 7 }, (_, i) => addDays(S.weekStart, i));
@@ -497,7 +440,114 @@ function popoverView() {
   </div>`;
 }
 
-/* Position the popover next to the clicked block, inside the calendar box.
+/* ================= Teams calendar ================= */
+/* The built-in Teams calendar: the user's own meetings, plus anything they
+   added from SEEK (marked with the SEEK logo). */
+
+const FIRST_HOUR = 8, LAST_HOUR = 22, HOUR_PX = 48;
+const isMeeting = (e) => e.type === 'meeting';
+const getCalendarEntry = (id) => MY_MEETINGS.find((m) => m.id === id) || getItem(id);
+const calendarEntries = (key) => [
+  ...MY_MEETINGS.filter((m) => m.date === key),
+  ...ITEMS.filter((i) => i.date === key && S.added.has(i.id)),
+];
+
+/* Overlapping entries sit side by side, like in Teams */
+function layoutLanes(entries) {
+  const sorted = [...entries].sort((a, b) => a.start - b.start || b.end - a.end);
+  const placed = [];
+  let group = [], groupEnd = -1;
+  const flush = () => {
+    const laneEnds = [];
+    const lanes = group.map((it) => {
+      let lane = laneEnds.findIndex((end) => end <= it.start);
+      if (lane < 0) lane = laneEnds.length;
+      laneEnds[lane] = it.end;
+      return lane;
+    });
+    group.forEach((it, i) => placed.push([it, { lane: lanes[i], lanes: laneEnds.length }]));
+    group = [];
+  };
+  for (const it of sorted) {
+    if (group.length && it.start >= groupEnd) flush();
+    if (!group.length) groupEnd = it.end;
+    group.push(it);
+    groupEnd = Math.max(groupEnd, it.end);
+  }
+  if (group.length) flush();
+  return placed;
+}
+
+function teamsCalendarView() {
+  const s = S.teamsWeek, e = addDays(s, 6);
+  const range = `${MONTHS[s.getMonth()]} ${s.getDate()} – ${s.getMonth() !== e.getMonth() ? MONTHS[e.getMonth()] + ' ' : ''}${e.getDate()}, ${e.getFullYear()}`;
+  const days = Array.from({ length: 7 }, (_, i) => addDays(s, i));
+  const head = `<div class="wk-head"><div></div>${days.map((d) =>
+    `<div class="wk-day ${ymd(d) === TODAY_KEY ? 'today' : ''}"><div class="n">${d.getDate()}</div><div class="d">${DOW[d.getDay()]}</div></div>`).join('')}</div>`;
+  const hours = Array.from({ length: LAST_HOUR - FIRST_HOUR }, (_, i) =>
+    `<div>${i ? fmtTime(FIRST_HOUR + i).replace(':00', '') : ''}</div>`).join('');
+
+  const block = (it, { lane, lanes }) => {
+    const top = (it.start - FIRST_HOUR) * HOUR_PX + 1;
+    const height = Math.max((it.end - it.start) * HOUR_PX - 2, 22);
+    const fromSeek = !isMeeting(it);
+    const place = `top:${top}px;height:${height}px;left:calc(${(lane / lanes) * 100}% + 3px);width:calc(${100 / lanes}% - 7px)`;
+    const classes = ['blk', it.type, isPast(it) ? 'past' : '', S.popover?.id === it.id ? 'act' : '', S.calFlash === it.id ? 'flash' : ''].join(' ');
+    return `<button class="${classes}" style="${place}" data-act="popover" data-arg="${it.id}">
+      <b>${fromSeek ? `<span class="src" title="Added from SEEK">${seekLogo(12)}</span>` : ''}${esc(it.title)}</b>
+      ${height > 34 ? `<span>${fromSeek ? esc(it.loc) : timeRange(it.start, it.end)}</span>` : ''}
+    </button>`;
+  };
+  const column = (d) => {
+    const key = ymd(d);
+    const now = key === TODAY_KEY ? `<div class="now" style="top:${(NOW - FIRST_HOUR) * HOUR_PX}px"></div>` : '';
+    return `<div class="wk-col ${key === TODAY_KEY ? 'today' : ''}" style="height:${(LAST_HOUR - FIRST_HOUR) * HOUR_PX}px">
+      ${layoutLanes(calendarEntries(key)).map(([it, lane]) => block(it, lane)).join('')}${now}</div>`;
+  };
+
+  return `<header class="mh cal-h">
+      <div class="mh-icon">${ic('calendar_ltr')}</div>
+      <div class="mh-title">Calendar</div>
+      <button class="btn fit" data-act="calToday">Today</button>
+      <button class="icbtn" data-act="calNav" data-arg="-1" aria-label="Previous week">${ic('chevron_left', 16)}</button>
+      <button class="icbtn" data-act="calNav" data-arg="1" aria-label="Next week">${ic('chevron_right', 16)}</button>
+      <span class="cal-range">${range}</span>
+      <div class="mh-actions"><button class="btn">${ic('video', 16)} Meet now</button><button class="btn primary">${ic('add', 16)} New meeting</button></div>
+    </header>
+    <div class="tcal" id="calbox">${head}
+      <div class="wk-body scroll" data-keep="calendar" id="wkBody"><div class="wk-grid"><div class="wk-times">${hours}</div>${days.map(column).join('')}</div></div>
+      ${teamsPopoverView()}
+    </div>`;
+}
+
+function teamsPopoverView() {
+  const it = S.popover && getCalendarEntry(S.popover.id);
+  if (!it) return '';
+  const { x, y, side, beakY } = S.popover;
+  const d = parseYmd(it.date);
+  const when = `${DOW[d.getDay()]}, ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()} · ${timeRange(it.start, it.end)}`;
+  const body = isMeeting(it)
+    ? `<h4>${esc(it.title)}</h4>
+       <div class="meta">${when}</div>
+       <div class="lbl">Organizer</div><p>${esc(it.organizer)}</p>
+       <div class="acts"><button class="btn sm primary">${ic('video', 16)} Join</button></div>`
+    : `<div class="from">${seekLogo(14)} Added from SEEK <span class="badge-t ${it.type}">${typeLabel(it)}</span></div>
+       <h4>${esc(it.title)} ${it.emoji}</h4>
+       <div class="meta">${when} · ${esc(it.loc)}</div>
+       <div class="lbl">Description</div><p>${esc(it.desc)}</p>
+       <div class="row going">${attendeeStack(it)}<span class="cap">${goingCount(it)} going</span></div>
+       <div class="acts">
+         <button class="btn sm" data-act="removeFromCalendar" data-arg="${it.id}">Remove</button>
+         <button class="btn sm primary" data-act="viewInSeek" data-arg="${it.id}">Open in SEEK</button>
+       </div>`;
+  return `<div class="pop" role="dialog" aria-label="${esc(it.title)}" style="left:${x}px;top:${y}px">
+    <span class="beak ${side}" style="top:${beakY}px"></span>
+    <button class="icbtn sm pop-x" data-act="closePopover" aria-label="Close">${ic('dismiss', 16)}</button>
+    ${body}
+  </div>`;
+}
+
+/* Position the popover next to the clicked block, inside the calendar.
    Rects are in screen pixels, so divide by SCALE to get window pixels. */
 function openPopover(id, el) {
   const box = $('#calbox');
@@ -513,6 +563,16 @@ function openPopover(id, el) {
   const beakY = Math.max(14, Math.min(ry + rh / 2 - y - 6, 260));
   S.popover = { id, x, y, side, beakY };
   render();
+}
+
+/* Jump to an added item in the Teams calendar and highlight it */
+function showInCalendar(id) {
+  const it = getItem(id);
+  if (!it) return;
+  Object.assign(S, { rail: 'calendar', teamsWeek: mondayOf(parseYmd(it.date)), popover: null, calFlash: id });
+  render();
+  $('#wkBody').scrollTop = Math.max(0, (it.start - FIRST_HOUR) * HOUR_PX - 80);
+  setTimeout(() => { S.calFlash = null; }, 2300);
 }
 
 /* ---------- Create ---------- */
@@ -726,7 +786,7 @@ function storeDialog() {
 
 function seekDetailDialog() {
   const feature = (icon, title, text) => `<div class="feat"><span class="fi">${ic(icon, 18)}</span><div><b>${title}</b><span>${text}</span></div></div>`;
-  const installLabel = S.installing ? '<span class="spinner"></span> Adding SEEK…' : 'Add to Marketing review';
+  const installLabel = S.installing ? '<span class="spinner"></span> Adding SEEK…' : 'Add';
   return `<div class="dlg wide" role="dialog" aria-modal="true" aria-label="SEEK" data-stop>
     <div class="dlg-body">
       <div class="ad-head">
@@ -734,15 +794,15 @@ function seekDetailDialog() {
         <div class="grow">
           <h2>SEEK</h2>
           <div class="ad-pub">SEEK Labs · ${ic('shield_checkmark', 16)} Publisher verified</div>
-          <div class="ad-tags"><span class="tag">Tabs</span><span class="tag">Bots</span><span class="tag">Meetings</span><span class="tag">Messaging</span></div>
+          <div class="ad-tags"><span class="tag">Personal app</span><span class="tag">Bots</span><span class="tag">Messaging</span></div>
         </div>
         <button class="icbtn top" data-act="closeDialog" aria-label="Close">${ic('dismiss')}</button>
       </div>
       <div class="ad-grid">
         <div>
           <p>See what’s happening around the office, from the quarterly party to leftover cake in the kitchen. Post in four fields, or mention <span class="mention">@SEEK</span> in any chat and it picks up the details for you.</p>
-          ${feature('calendar_ltr', 'Today at a glance', 'A meeting or channel tab with everything happening today.')}
-          ${feature('calendar_add', 'One-click RSVP', 'Add anything to your Outlook calendar without leaving Teams.')}
+          ${feature('calendar_ltr', 'Today at a glance', 'Pinned to your app bar, with everything happening around the office today.')}
+          ${feature('calendar_add', 'Works with your calendar', 'One click adds a pop-up or event to your Teams calendar, next to your meetings.')}
           ${feature('sparkle', 'Smart detection in chat', 'The SEEK bot spots plans in a conversation and turns them into events for the team.')}
         </div>
         <div class="perm">
@@ -795,7 +855,6 @@ function chatView() {
         ${avatar('TerraSync', 32, { text: 'TS' })}<span class="nm">TerraSync</span>
         <div class="tabs">
           <button class="tab sel">Chat</button><button class="tab">Files</button>
-          ${S.installed ? `<button class="tab" data-act="openSeek">${seekTabIcon()}SEEK</button>` : ''}
           <button class="tab tab-add">${ic('add_square', 18)}</button>
         </div>
         <div class="acts">
@@ -1034,7 +1093,7 @@ function toggleAdd(id) {
   if (S.added.has(id)) { S.added.delete(id); render(); return; }
   S.added.add(id);
   render();
-  showToast('Added to your calendar', `${it.title} · ${dayLabel(it.date)}, ${fmtTime(it.start)}`, 'Undo', () => { S.added.delete(id); render(); });
+  showToast('Added to your Teams calendar', `${it.title} · ${dayLabel(it.date)}, ${fmtTime(it.start)}`, 'View in Calendar', () => showInCalendar(id));
 }
 
 function install() {
@@ -1042,9 +1101,9 @@ function install() {
   S.installing = true;
   render();
   setTimeout(() => {
-    Object.assign(S, { installing: false, installed: true, dialog: null, meetingTab: 'seek', seekTab: 'today', segment: 'events' });
+    Object.assign(S, { installing: false, installed: true, dialog: null, rail: 'seek', seekTab: 'today', segment: 'events' });
     render();
-    showToast('SEEK was added', 'It’s now a tab in Marketing review.');
+    showToast('SEEK was added', 'It’s pinned to your app bar.');
   }, 1200);
 }
 
@@ -1055,10 +1114,9 @@ const ACTIONS = {
     Object.assign(S, { rail: id, popover: null });
     render();
   },
-  meetingTab(id) { S.meetingTab = id; render(); },
-  openStore() { Object.assign(S, { rail: 'calendar', dialog: 'store', storeQuery: '' }); render(); },
+  openStore() { Object.assign(S, { dialog: 'store', storeQuery: '' }); render(); },
   openSeekDetail() {
-    if (S.installed) Object.assign(S, { dialog: null, meetingTab: 'seek' });
+    if (S.installed) Object.assign(S, { dialog: null, rail: 'seek' });
     else S.dialog = 'detail';
     render();
   },
@@ -1066,7 +1124,7 @@ const ACTIONS = {
   closeDialog() { if (!S.installing) { S.dialog = null; render(); } },
   backdrop() { ACTIONS.closeDialog(); },
   install,
-  openSeek() { Object.assign(S, { rail: 'calendar', meetingTab: 'seek', seekTab: 'today' }); render(); },
+  openSeek() { Object.assign(S, { rail: 'seek', seekTab: 'today' }); render(); },
   seekTab(id) { Object.assign(S, { seekTab: id, popover: null, errors: {} }); render(); },
   formType(type) {
     S.form.type = type;
@@ -1091,24 +1149,33 @@ const ACTIONS = {
   toggleAdd,
   calView(id) { Object.assign(S, { calView: id, popover: null }); render(); },
   calToday() {
-    Object.assign(S, { weekStart: mondayOf(TODAY), month: new Date(TODAY.getFullYear(), TODAY.getMonth(), 1), popover: null });
+    if (S.rail === 'calendar') S.teamsWeek = mondayOf(TODAY);
+    else Object.assign(S, { weekStart: mondayOf(TODAY), month: new Date(TODAY.getFullYear(), TODAY.getMonth(), 1) });
+    S.popover = null;
     render();
   },
   calNav(dir) {
-    if (S.calView === 'week') S.weekStart = addDays(S.weekStart, 7 * dir);
+    if (S.rail === 'calendar') S.teamsWeek = addDays(S.teamsWeek, 7 * dir);
+    else if (S.calView === 'week') S.weekStart = addDays(S.weekStart, 7 * dir);
     else S.month = new Date(S.month.getFullYear(), S.month.getMonth() + Number(dir), 1);
     S.popover = null;
     render();
   },
+  showWeek(key) { Object.assign(S, { calView: 'week', weekStart: mondayOf(parseYmd(key)) }); render(); },
+  removeFromCalendar(id) { S.added.delete(id); S.popover = null; render(); },
   popover(id, el) {
     if (S.popover?.id === id) { S.popover = null; render(); }
     else openPopover(id, el);
   },
   closePopover() { S.popover = null; render(); },
-  showWeek(key) { Object.assign(S, { calView: 'week', weekStart: mondayOf(parseYmd(key)) }); render(); },
   viewInSeek(id) {
     const it = getItem(id);
-    Object.assign(S, { rail: 'calendar', meetingTab: 'seek', seekTab: 'today', segment: it?.type === 'popup' ? 'popups' : 'events', view: 'cards' });
+    if (it && it.date !== TODAY_KEY) {
+      Object.assign(S, { rail: 'seek', seekTab: 'calendar', calView: 'week', weekStart: mondayOf(parseYmd(it.date)), popover: null });
+      render();
+      return;
+    }
+    Object.assign(S, { rail: 'seek', seekTab: 'today', popover: null, segment: it?.type === 'popup' ? 'popups' : 'events', view: 'cards' });
     flash(id);
   },
 };
@@ -1117,9 +1184,9 @@ const ACTIONS = {
 
 function goToStep(n) {
   Object.assign(S, { popover: null, openDropdown: null });
-  if (n === 1) Object.assign(S, { rail: 'calendar', meetingTab: 'details', installed: false, dialog: 'store', storeQuery: '', installing: false, seekTab: 'today' });
-  if (n === 2) Object.assign(S, { rail: 'calendar', installed: true, dialog: null, meetingTab: 'seek', seekTab: 'today', segment: 'events', view: 'cards' });
-  if (n === 3) Object.assign(S, { rail: 'calendar', installed: true, dialog: null, meetingTab: 'seek', seekTab: 'create', errors: {} });
+  if (n === 1) Object.assign(S, { rail: 'calendar', installed: false, dialog: 'store', storeQuery: '', installing: false, seekTab: 'today' });
+  if (n === 2) Object.assign(S, { rail: 'seek', installed: true, dialog: null, seekTab: 'today', segment: 'events', view: 'cards' });
+  if (n === 3) Object.assign(S, { rail: 'seek', installed: true, dialog: null, seekTab: 'create', errors: {} });
   if (n === 4) {
     Object.assign(S, { rail: 'chat', installed: true, dialog: null, chatBadge: 0 });
     if (S.scriptPlayed) Object.assign(S, { chat: initialChat(), draft: CHAT_DRAFT, scriptPlayed: false }); // replay the demo
@@ -1130,7 +1197,7 @@ function goToStep(n) {
 function currentStep() {
   if (S.rail === 'chat') return 4;
   if (!S.installed || S.dialog) return 1;
-  if (S.meetingTab === 'seek' && S.seekTab === 'create') return 3;
+  if (S.rail === 'seek' && S.seekTab === 'create') return 3;
   return 2;
 }
 

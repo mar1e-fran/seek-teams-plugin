@@ -4,8 +4,14 @@ Interactive prototype of SEEK, a Microsoft Teams app for discovering and posting
 
 **Live demo:** https://mar1e-fran.github.io/seek-teams-plugin/
 
+## Where SEEK lives in Teams
+SEEK adds to Teams rather than replacing any of it:
+- **App bar (personal app):** SEEK's home. *Today* lists pop-ups and events; *Calendar* (All / Week / Month) shows everything happening around the office that you could join.
+- **Teams Calendar:** stays the user's real calendar. *Add to calendar* puts a SEEK item there, marked with the SEEK logo, next to their meetings.
+- **Chat:** the SEEK bot spots plans in a conversation and posts them as an Adaptive Card.
+
 ## The flow
-1. **Install** – SEEK is added from the Teams app store, so there is no new software to approve.
+1. **Install** – SEEK is added from the Teams app store and pinned to the app bar, so there is no new software to approve.
 2. **Browse** – Today's pop-ups and events, each one click from the employee's calendar (list, week and month views).
 3. **Create** – Anyone can post an event in four fields.
 4. **Detect** – The SEEK bot spots an event in a chat and posts it for the team.

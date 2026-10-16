@@ -78,7 +78,7 @@ for (const day of [1, 8, 22, 29]) {
 /* Explainer shown under the Pop-ups / Events filter */
 const TYPE_NOTES = {
   popups: ['sparkle', 'Spur-of-the-moment things coworkers post on the day, like leftover food, a coffee run or a lunch walk. No RSVP, just show up.'],
-  events: ['calendar_ltr', 'Planned ahead by teams and HR. Add them to your calendar so you don’t miss out.'],
+  events: ['calendar_ltr', 'Planned ahead by colleagues, teams and HR. Add them to your calendar so you don’t miss out.'],
 };
 
 /* Teams "Add an app" dialog */
@@ -160,6 +160,6 @@ const CHAT_REPLIES = [
 const STEPS = [
   ['Install', 'SEEK is added from the Teams app store, so there is no new software to approve.'],
   ['Browse', 'Today’s events, each one click away from the employee’s calendar.'],
-  ['Create', 'Anyone can post an event in four fields.'],
+  ['Create', 'Anyone can post a quick pop-up or a planned event in four fields.'],
   ['Detect', 'A shortcut on top of event creation: the SEEK bot spots an event in a chat and offers to post it.'],
 ];

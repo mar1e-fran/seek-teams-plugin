@@ -65,12 +65,18 @@ const isPast = (it) => it.date < TODAY_KEY || (it.date === TODAY_KEY && it.end <
 const goingCount = (it) => it.going + (S.added.has(it.id) ? 1 : 0);
 const passesFilter = (it) => S.filter === 'all' || (S.filter === 'popups') === (it.type === 'popup');
 
+/* "12:00–12:30 PM", or "11:30 AM–1:00 PM" across noon */
+function timeRange(start, end) {
+  const a = fmtTime(start), b = fmtTime(end);
+  return a.slice(-2) === b.slice(-2) ? `${a.slice(0, -3)}–${b}` : `${a}–${b}`;
+}
+
+/* Pop-ups are time-limited, so they show their window; events show a start time */
 function timeLabel(it) {
-  if (it.date === TODAY_KEY) {
-    if (it.rel) return it.rel;
-    if (it.start <= NOW && it.end > NOW) return 'Happening now';
-  }
-  return fmtTime(it.start);
+  const live = it.date === TODAY_KEY && it.start <= NOW && it.end > NOW;
+  if (it.date === TODAY_KEY && it.rel) return it.rel;
+  if (it.type === 'popup') return live ? `Until ${fmtTime(it.end)}` : timeRange(it.start, it.end);
+  return live ? 'Happening now' : fmtTime(it.start);
 }
 
 function todaySummary() {
@@ -80,6 +86,10 @@ function todaySummary() {
 }
 
 /* ================= State ================= */
+
+function emptyForm() {
+  return { type: 'popup', name: '', date: TODAY_KEY, time: '', duration: '30', desc: '' };
+}
 
 const S = {
   // shell
@@ -101,7 +111,7 @@ const S = {
   popover: null,           // { id, x, y, side, beakY }
   openDropdown: null,
   flash: null,             // id of a card to highlight once
-  form: { name: '', date: TODAY_KEY, time: '', desc: '' },
+  form: emptyForm(),
   errors: {},
   // chat
   chat: initialChat(),
@@ -507,40 +517,102 @@ function openPopover(id, el) {
 
 /* ---------- Create ---------- */
 
+const POST_TYPES = {
+  popup: {
+    icon: 'sparkle', title: 'Pop-up',
+    text: 'Happening today, for a short while. Leftover pizza, homebaked cookies, a coffee run.',
+    name: 'e.g. Homebaked cookies in the break room',
+    desc: 'Where is it? How long will it last?',
+    submit: 'Post pop-up',
+  },
+  event: {
+    icon: 'calendar_ltr', title: 'Event',
+    text: 'Planned for a specific date and time. Workshops, book clubs, team lunches, celebrations.',
+    name: 'e.g. Friday board game night',
+    desc: 'What’s the plan? Where should people meet?',
+    submit: 'Post event',
+  },
+};
+const DURATIONS = [['15', '15 minutes'], ['30', '30 minutes'], ['60', '1 hour'], ['120', '2 hours']];
+
+/* Nudge people toward the right type based on what they type */
+const POPUP_WORDS = /pizza|cookie|cake|cupcake|leftover|snack|donut|doughnut|bagel|treat|fruit|free food|break ?room|kitchen|coffee run|for grabs/i;
+const EVENT_WORDS = /workshop|training|talk|session|book club|offsite|town hall|kickoff|celebration|party|lunch & learn|meetup|tournament|hackathon|game night|happy hour/i;
+function suggestedType() {
+  const { type, name, desc } = S.form;
+  const text = `${name} ${desc}`;
+  if (type === 'event' && POPUP_WORDS.test(text) && !EVENT_WORDS.test(text)) return 'popup';
+  if (type === 'popup' && EVENT_WORDS.test(text)) return 'event';
+  return null;
+}
+function typeHintView() {
+  const t = suggestedType();
+  if (!t) return '';
+  const why = t === 'popup' ? 'quick, today-only things like this work best as pop-ups' : 'planned get-togethers work best as events, so people can add them ahead of time';
+  return `${ic('lightbulb', 16)}<span>Sounds like ${t === 'popup' ? 'a pop-up' : 'an event'}: ${why}.</span>
+    <button type="button" class="link" data-act="formType" data-arg="${t}">Switch to ${POST_TYPES[t].title.toLowerCase()}</button>`;
+}
+
 function createView() {
   const { form: f, errors: e } = S;
+  const type = POST_TYPES[f.type];
   const error = (k) => (e[k] ? `<div class="errmsg">${ic('info_f', 12)}${e[k]}</div>` : '');
   const field = (k) => `inp ${e[k] ? 'err' : ''}`;
+  const typeOption = (key) => {
+    const t = POST_TYPES[key], sel = f.type === key;
+    return `<button type="button" class="type-opt ${sel ? 'sel' : ''}" role="radio" aria-checked="${sel}" data-act="formType" data-arg="${key}">
+      <span class="type-ic ${key}">${ic(t.icon)}</span>
+      <span class="type-text"><b>${t.title}</b><span>${t.text}</span></span>
+      ${sel ? ic('checkmark_circle_f', 20, 'type-check') : ''}
+    </button>`;
+  };
+  const timeField = `<div>
+      <label class="lbl" for="f-time">${f.type === 'popup' ? 'Starts' : 'Time'}<span class="req">*</span></label>
+      <div class="${field('time')}">${ic('clock')}<input id="f-time" type="time" data-field="time" value="${esc(f.time)}"></div>
+      ${error('time')}
+    </div>`;
+  const whenRow = f.type === 'popup'
+    ? `<div class="f-row">${timeField}
+        <div>
+          <label class="lbl" for="f-duration">Lasts</label>
+          <div class="inp">${ic('timer')}<select id="f-duration" data-field="duration">${DURATIONS.map(([v, l]) => `<option value="${v}" ${f.duration === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${ic('chevron_down', 16)}</div>
+        </div>
+      </div>
+      <div class="hint">Pop-ups are for today only and disappear when they end.</div>`
+    : `<div class="f-row">
+        <div>
+          <label class="lbl" for="f-date">Date</label>
+          <div class="${field('date')}">${ic('calendar_ltr')}<input id="f-date" type="date" data-field="date" value="${esc(f.date)}" min="${TODAY_KEY}"></div>
+          ${error('date')}
+        </div>
+        ${timeField}
+      </div>`;
+
   return `<button class="btn subtle back" data-act="seekTab" data-arg="today">${ic('arrow_left', 16)} Back</button>
   <div class="create">
     <div>
       <h2 class="sect">Create an event</h2>
-      <div class="lede">Post an event for everyone at Contoso. It only takes four fields.</div>
+      <div class="lede">Post a pop-up or a planned event for everyone at Contoso. It only takes four fields.</div>
       <form class="form" id="createForm" novalidate>
         <div>
-          <label class="lbl" for="f-name">Name<span class="req">*</span></label>
-          <div class="${field('name')}"><input id="f-name" data-field="name" value="${esc(f.name)}" placeholder="e.g. Pizza in the kitchen" maxlength="60" autocomplete="off"></div>
-          ${error('name')}
-        </div>
-        <div class="f-row">
-          <div>
-            <label class="lbl" for="f-date">Date</label>
-            <div class="inp">${ic('calendar_ltr')}<input id="f-date" type="date" data-field="date" value="${esc(f.date)}"></div>
-          </div>
-          <div>
-            <label class="lbl" for="f-time">Time<span class="req">*</span></label>
-            <div class="${field('time')}">${ic('clock')}<input id="f-time" type="time" data-field="time" value="${esc(f.time)}"></div>
-            ${error('time')}
-          </div>
+          <div class="lbl">What are you posting?</div>
+          <div class="type-pick" role="radiogroup" aria-label="What are you posting?">${typeOption('popup')}${typeOption('event')}</div>
+          <div class="type-hint" id="typeHint">${typeHintView()}</div>
         </div>
         <div>
+          <label class="lbl" for="f-name">Name<span class="req">*</span></label>
+          <div class="${field('name')}"><input id="f-name" data-field="name" value="${esc(f.name)}" placeholder="${type.name}" maxlength="60" autocomplete="off"></div>
+          ${error('name')}
+        </div>
+        <div>${whenRow}</div>
+        <div>
           <label class="lbl" for="f-desc">Description<span class="req">*</span></label>
-          <div class="${field('desc')} ta"><textarea id="f-desc" data-field="desc" placeholder="Where is it, what should people bring?" maxlength="200">${esc(f.desc)}</textarea></div>
+          <div class="${field('desc')} ta"><textarea id="f-desc" data-field="desc" placeholder="${type.desc}" maxlength="200">${esc(f.desc)}</textarea></div>
           ${error('desc') || '<div class="hint">Add a location like “in the kitchen” and SEEK will pick it up.</div>'}
         </div>
         <div class="f-acts">
           <button type="button" class="btn" data-act="seekTab" data-arg="today">Cancel</button>
-          <button type="submit" class="btn primary">Post event</button>
+          <button type="submit" class="btn primary">${type.submit}</button>
         </div>
       </form>
     </div>
@@ -552,20 +624,23 @@ function createView() {
   </div>`;
 }
 
-/* The form as an item. Posting for today makes a pop-up, a later date makes an event. */
+/* The form as an item. Pop-ups are always today and last the chosen duration;
+   events go on any date and default to an hour. */
 function draftItem() {
   const f = S.form;
+  const popup = f.type === 'popup';
   const [hh, mm] = (f.time || '12:00').split(':').map(Number);
   const start = hh + mm / 60;
   return {
     id: 'draft',
-    type: f.date === TODAY_KEY ? 'popup' : 'event',
-    title: f.name.trim() || 'Your event name',
+    type: f.type,
+    title: f.name.trim() || (popup ? 'Your pop-up' : 'Your event name'),
     emoji: pickEmoji(`${f.name} ${f.desc}`),
     by: ME.handle,
     loc: findLocation(f.desc) || 'Location TBD',
-    date: f.date || TODAY_KEY,
-    start, end: start + 1,
+    date: popup ? TODAY_KEY : f.date || TODAY_KEY,
+    start,
+    end: popup ? start + Number(f.duration) / 60 : start + 1,
     desc: f.desc,
     going: 0,
   };
@@ -573,8 +648,11 @@ function draftItem() {
 
 function submitCreate() {
   const f = S.form, errors = {};
-  if (!f.name.trim()) errors.name = 'Give your event a name.';
+  const popup = f.type === 'popup';
+  if (!f.name.trim()) errors.name = popup ? 'Give your pop-up a name.' : 'Give your event a name.';
+  if (!popup && f.date < TODAY_KEY) errors.date = 'Pick today or a later date.';
   if (!f.time) errors.time = 'Pick a time.';
+  else if (popup && draftItem().start < NOW) errors.time = 'Pop-ups start now or later today.';
   if (!f.desc.trim()) errors.desc = 'Add a short description.';
   S.errors = errors;
   const firstError = Object.keys(errors)[0];
@@ -583,14 +661,16 @@ function submitCreate() {
   const it = { ...draftItem(), id: `post-${Date.now()}`, going: 1 };
   ITEMS.push(it);
   S.added.add(it.id);
-  S.form = { name: '', date: TODAY_KEY, time: '', desc: '' };
-  if (it.date === TODAY_KEY) Object.assign(S, { seekTab: 'today', segment: 'popups', view: 'cards' });
+  S.form = emptyForm();
+  if (it.date === TODAY_KEY) Object.assign(S, { seekTab: 'today', segment: popup ? 'popups' : 'events', view: 'cards' });
   else Object.assign(S, { seekTab: 'calendar', calView: 'agenda' });
   flash(it.id);
 
   const where = it.loc !== 'Location TBD' ? ` in the ${it.loc.toLowerCase()}` : '';
-  showToast('Your event is live', `${it.title} · ${dayLabel(it.date)}, ${fmtTime(it.start)}`, 'Share in TerraSync chat', () => {
-    Object.assign(S, { rail: 'chat', chatBadge: 0, draft: `@SEEK ${it.title} at ${fmtTime(it.start)}${where}. Who’s in?` });
+  const when = popup ? timeRange(it.start, it.end) : `${dayLabel(it.date)}, ${fmtTime(it.start)}`;
+  showToast(popup ? 'Your pop-up is live' : 'Your event is posted', `${it.title} · ${when}`, 'Share in TerraSync chat', () => {
+    const day = it.date === TODAY_KEY ? '' : it.date === ymd(addDays(TODAY, 1)) ? ' tomorrow' : ` on ${DOW[parseYmd(it.date).getDay()]}`;
+    Object.assign(S, { rail: 'chat', chatBadge: 0, draft: `@SEEK ${it.title}${day} at ${fmtTime(it.start)}${where}. Who’s in?` });
     render();
   });
 }
@@ -809,6 +889,7 @@ function sendChat(raw) {
   refreshChat();
 
   const time = parseTime(text);
+  const date = parseDay(text);
   if (time == null && !/@SEEK\b/i.test(text)) return; // nothing for the bot to do
 
   setTimeout(() => { S.typing = 'SEEK'; refreshChat(); }, 350);
@@ -820,8 +901,8 @@ function sendChat(raw) {
       return;
     }
     const it = {
-      id: `chat-${Date.now()}`, type: 'popup', title: parseTitle(text), emoji: pickEmoji(text), by: ME.handle,
-      loc: findLocation(text) || 'TerraSync team', date: TODAY_KEY, start: time, end: time + 1,
+      id: `chat-${Date.now()}`, type: date === TODAY_KEY ? 'popup' : 'event', title: parseTitle(text), emoji: pickEmoji(text), by: ME.handle,
+      loc: findLocation(text) || 'TerraSync team', date, start: time, end: time + 1,
       desc: text.replace(/@SEEK\s*/gi, ''), going: 1,
     };
     ITEMS.push(it);
@@ -894,9 +975,19 @@ function parseTime(text) {
   return null;
 }
 
+/* "tomorrow" / "on Friday" → that date; anything else means today */
+function parseDay(text) {
+  if (/\btomorrow\b/i.test(text)) return ymd(addDays(TODAY, 1));
+  const m = text.match(/\b(next )?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i);
+  if (!m) return TODAY_KEY;
+  let ahead = (DOW.findIndex((d) => d.toLowerCase() === m[2].toLowerCase()) - TODAY.getDay() + 7) % 7;
+  if (m[1] && ahead === 0) ahead = 7;
+  return ymd(addDays(TODAY, ahead));
+}
+
 /* "I am bringing Hot Dogs at 7" → "Hot dogs" */
 function parseTitle(text) {
-  const t = text.replace(/@SEEK\b/gi, '').trim();
+  const t = text.replace(/@SEEK\b/gi, '').replace(/\b(?:tomorrow|(?:on |next )?(?:sun|mon|tues|wednes|thurs|fri|satur)day)\b/gi, '').replace(/\s{2,}/g, ' ').trim();
   const m = t.match(/\b(?:bringing|brought|made|baking|baked|have|has|got)\s+(?:some\s+|a\s+few\s+|extra\s+)?(.+?)\s+(?:at|to|for|in|on|@|around)\b/i)
     || t.match(/\b(?:anyone (?:up for|want(?:s)? to|keen for|fancy)|who(?:'s| is) up for|let'?s(?: go)?(?: grab| get| have| do)?|join (?:me|us) for)\s+(?:a\s+|an\s+|some\s+)?(.+?)\s+(?:at|in|on|@|around|today|tonight|after)\b/i);
   if (m) return sentenceCase(m[1].split(/[,.!?;]/)[0]);
@@ -977,6 +1068,12 @@ const ACTIONS = {
   install,
   openSeek() { Object.assign(S, { rail: 'calendar', meetingTab: 'seek', seekTab: 'today' }); render(); },
   seekTab(id) { Object.assign(S, { seekTab: id, popover: null, errors: {} }); render(); },
+  formType(type) {
+    S.form.type = type;
+    delete S.errors.time;
+    delete S.errors.date;
+    render();
+  },
   openCreate() {
     Object.assign(S, { seekTab: 'create', errors: {} });
     render();
@@ -1087,6 +1184,7 @@ document.addEventListener('input', (e) => {
       box.parentNode.querySelector('.errmsg')?.remove();
     }
     $('#preview').innerHTML = card(draftItem(), { preview: true });
+    $('#typeHint').innerHTML = typeHintView();
   } else if (t.id === 'chatInput') {
     S.draft = t.value;
     updateSendButton();
